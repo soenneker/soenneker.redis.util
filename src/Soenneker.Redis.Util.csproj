@@ -35,13 +35,13 @@
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\" />
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
-        <None Include="..\icon.png" Pack="true" PackagePath="\"/>
+        <None Include="..\icon.png" Pack="true" PackagePath="\" />
 
         <PackageReference Include="Humanizer.Core" Version="2.14.1" />
 
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
 
-        <PackageReference Include="Soenneker.Extensions.Enumerable" Version="1.0.12" />
+        <PackageReference Include="Soenneker.Extensions.Enumerable" Version="1.0.13" />
 
         <PackageReference Include="Soenneker.Redis.Client" Version="1.0.13" />
 
