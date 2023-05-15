@@ -217,7 +217,7 @@ public class RedisUtil : IRedisUtil
         ValueTask result;
 
         if (useQueue)
-            result = _backgroundQueue.QueueValueTask(async _ => { await InternalStringSet(redisKey, redisValue, expiration); });
+            result = _backgroundQueue.QueueValueTask(_ => InternalStringSet(redisKey, redisValue, expiration));
         else
             result = InternalStringSet(redisKey, redisValue, expiration);
 
@@ -261,7 +261,7 @@ public class RedisUtil : IRedisUtil
         ValueTask result;
 
         if (useQueue)
-            result = _backgroundQueue.QueueValueTask(async _ => { await InternalHashSet(redisKey, field, redisValue); });
+            result = _backgroundQueue.QueueValueTask(_ => InternalHashSet(redisKey, field, redisValue));
         else
             result = InternalHashSet(redisKey, field, redisValue);
 
