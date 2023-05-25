@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Soenneker.Redis.Client.Registrars;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Utils.BackgroundQueue.Registrars;
+using Soenneker.Utils.MemoryStream.Registrars;
 
 namespace Soenneker.Redis.Util.Registrars;
 
@@ -18,6 +19,7 @@ public static class RedisUtilRegistrar
     {
         services.AddBackgroundQueue();
         services.AddRedisClientAsSingleton();
+        services.AddMemoryStreamUtil();
         services.TryAddSingleton<IRedisUtil, RedisUtil>();
     }
 }

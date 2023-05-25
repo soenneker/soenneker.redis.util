@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Humanizer;
@@ -13,11 +14,13 @@ using Soenneker.Redis.Client.Abstract;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Utils.BackgroundQueue.Abstract;
 using Soenneker.Utils.Json;
+using Soenneker.Utils.MemoryStream.Abstract;
 using Soenneker.Utils.Method;
 using StackExchange.Redis;
 
 namespace Soenneker.Redis.Util;
 
+// TODO: Time to break this up
 /// <inheritdoc cref="IRedisUtil"/>
 public class RedisUtil : IRedisUtil
 {
@@ -28,8 +31,9 @@ public class RedisUtil : IRedisUtil
     private readonly ILogger<RedisUtil> _logger;
     private readonly IRedisClient _redisClient;
     private readonly IBackgroundQueue _backgroundQueue;
+    private readonly IMemoryStreamUtil _memoryStreamUtil;
 
-    public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient, IBackgroundQueue backgroundQueue)
+    public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient, IBackgroundQueue backgroundQueue, IMemoryStreamUtil memoryStreamUtil)
     {
         _log = config.GetValue<bool>("Azure:Redis:Log");
 
@@ -38,6 +42,7 @@ public class RedisUtil : IRedisUtil
         _jsonOptionType = _log ? JsonOptionType.Pretty : JsonOptionType.Web;
         _redisClient = redisClient;
         _backgroundQueue = backgroundQueue;
+        _memoryStreamUtil = memoryStreamUtil;
     }
 
     public ValueTask<T?> Get<T>(string cacheKey, string? key) where T : class
@@ -49,15 +54,14 @@ public class RedisUtil : IRedisUtil
 
     public async ValueTask<T?> Get<T>(string redisKey) where T : class
     {
-        string? cacheValue = await GetString(redisKey);
+        Lease<byte>? cacheValue = await GetLease(redisKey);
 
         if (cacheValue == null)
             return default;
 
         try
         {
-            var deserialized = JsonUtil.Deserialize<T>(cacheValue);
-
+            var deserialized = JsonUtil.Deserialize<T>(cacheValue.Span);
             return deserialized;
         }
         catch (Exception e)
@@ -129,6 +133,37 @@ public class RedisUtil : IRedisUtil
         }
     }
 
+    private async ValueTask<Lease<byte>?> GetLease(string redisKey)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", MethodUtil.Get());
+            return null;
+        }
+
+        try
+        {
+            // this is a cheap pass-thru object, and does not need to be stored
+            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+
+            Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey);
+
+            if (!_log)
+                return lease;
+
+            if (lease == null)
+                _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
+
+            return lease;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error getting key: {key}", redisKey);
+
+            return null;
+        }
+    }
+
     public async ValueTask<string?> GetHash(string redisKey, string field)
     {
         if (redisKey.IsNullOrEmpty())
@@ -169,28 +204,25 @@ public class RedisUtil : IRedisUtil
         return Set(redisKey, value, expiration, useQueue);
     }
 
-    public ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false) where T : class
+    public async ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false) where T : class
     {
         if (redisKey.IsNullOrEmpty())
         {
             _logger.LogError(">> REDIS: Skipping {method} because the key is null or empty", MethodUtil.Get());
-            return ValueTask.CompletedTask;
+            return;
         }
 
-        string json;
+        RedisValue? redisValue = await SerializeValue(redisKey, value);
 
-        try
+        if (redisValue == null)
+            return;
+
+        if (useQueue)
         {
-            json = JsonUtil.Serialize(value, _jsonOptionType)!;
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, ">> REDIS: Error serializing object with key: {key}", redisKey);
-
-            return ValueTask.CompletedTask;
+            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration));
         }
 
-        return Set(redisKey, json, expiration, useQueue);
+        await InternalRedisValueSet(redisKey, redisValue.Value, expiration);
     }
 
     public ValueTask Set(string cacheKey, string? key, string value, TimeSpan? expiration = null, bool useQueue = false)
@@ -214,17 +246,33 @@ public class RedisUtil : IRedisUtil
             return ValueTask.CompletedTask;
         }
 
-        ValueTask result;
-
         if (useQueue)
-            result = _backgroundQueue.QueueValueTask(_ => InternalStringSet(redisKey, redisValue, expiration));
-        else
-            result = InternalStringSet(redisKey, redisValue, expiration);
+            return _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue, expiration));
 
-        return result;
+        return InternalRedisValueSet(redisKey, redisValue, expiration);
     }
 
-    private async ValueTask InternalStringSet(string redisKey, string redisValue, TimeSpan? expiration = null)
+    private async ValueTask<RedisValue?> SerializeValue<T>(RedisKey redisKey, T value)
+    {
+        MemoryStream memoryStream = await _memoryStreamUtil.Get();
+
+        RedisValue redisValue;
+
+        try
+        {
+            await JsonUtil.SerializeIntoStream(memoryStream, value, _jsonOptionType);
+            redisValue = RedisValue.CreateFrom(memoryStream);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error serializing object with key: {key}", redisKey);
+            return null;
+        }
+
+        return redisValue;
+    }
+
+    private async ValueTask InternalRedisValueSet(RedisKey redisKey, RedisValue redisValue, TimeSpan? expiration = null)
     {
         try
         {
