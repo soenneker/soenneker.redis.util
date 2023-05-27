@@ -8,6 +8,7 @@ using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using Soenneker.Fixtures.Unit;
 using Soenneker.Redis.Util.Registrars;
+using Soenneker.Utils.Test;
 using ILogger = Serilog.ILogger;
 
 namespace Soenneker.Redis.Util.Tests;
@@ -23,7 +24,7 @@ public class RedisUtilFixture : UnitFixture
 
     private static void SetupIoC(IServiceCollection services)
     {
-        IConfiguration config = UnitTestUtil.BuildConfig();
+        IConfiguration config = TestUtil.BuildConfig();
 
         services.TryAdd(ServiceDescriptor.Singleton<ILoggerFactory, LoggerFactory>());
         services.TryAdd(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(Logger<>)));
