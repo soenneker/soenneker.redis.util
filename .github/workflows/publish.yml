@@ -12,19 +12,7 @@ jobs:
   # Build, test and publish (if this is a push/merge).
   publish-build-and-test:
     runs-on: ubuntu-latest
-
-    services:
-      redis:
-        image: redis
-        # Set health checks to wait until redis has started
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
+  
     steps:
       - uses: actions/checkout@v3
 
@@ -40,7 +28,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test --no-restore --verbosity normal
+        run: dotnet test test/Soenneker.Redis.Util.Tests.csproj --no-restore --verbosity normal
 
   publish-package:
     needs: publish-build-and-test
