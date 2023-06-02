@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net7.0</TargetFramework>
@@ -16,7 +16,7 @@
         <PackageReference Include="Soenneker.Documents.Document" Version="1.0.83" />
         <PackageReference Include="Soenneker.Facts.Manual" Version="1.0.26" />
         <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="1.0.76" />
-        <PackageReference Include="Soenneker.Utils.Test" Version="1.0.7" />
+        <PackageReference Include="Soenneker.Utils.Test" Version="1.0.9" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
