@@ -220,6 +220,7 @@ public class RedisUtil : IRedisUtil
         if (useQueue)
         {
             await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration));
+            return;
         }
 
         await InternalRedisValueSet(redisKey, redisValue.Value, expiration);
@@ -306,14 +307,10 @@ public class RedisUtil : IRedisUtil
             return ValueTask.CompletedTask;
         }
 
-        ValueTask result;
-
         if (useQueue)
-            result = _backgroundQueue.QueueValueTask(_ => InternalHashSet(redisKey, field, redisValue));
-        else
-            result = InternalHashSet(redisKey, field, redisValue);
+            return _backgroundQueue.QueueValueTask(_ => InternalHashSet(redisKey, field, redisValue));
 
-        return result;
+        return InternalHashSet(redisKey, field, redisValue);
     }
 
     private async ValueTask InternalHashSet(string redisKey, string field, string redisValue)
@@ -347,14 +344,10 @@ public class RedisUtil : IRedisUtil
             return ValueTask.CompletedTask;
         }
 
-        ValueTask result;
-
         if (useQueue)
-            result = _backgroundQueue.QueueValueTask(async _ => { await InternalKeyDelete(redisKey); });
-        else
-            result = InternalKeyDelete(redisKey);
-
-        return result;
+           return _backgroundQueue.QueueValueTask( _ => InternalKeyDelete(redisKey));
+        
+        return InternalKeyDelete(redisKey);
     }
 
     private async ValueTask InternalKeyDelete(string redisKey)
