@@ -269,6 +269,10 @@ public class RedisUtil : IRedisUtil
             _logger.LogError(e, ">> REDIS: Error serializing object with key: {key}", redisKey);
             return null;
         }
+        finally
+        {
+            await memoryStream.DisposeAsync();
+        }
 
         return redisValue;
     }

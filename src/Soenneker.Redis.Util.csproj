@@ -43,13 +43,13 @@
 
         <PackageReference Include="Soenneker.Extensions.Enumerable" Version="1.0.21" />
 
-        <PackageReference Include="Soenneker.Redis.Client" Version="1.0.52" />
+        <PackageReference Include="Soenneker.Redis.Client" Version="1.0.59" />
 
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="1.0.58" />
 
-        <PackageReference Include="Soenneker.Utils.Json" Version="1.0.81" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="1.0.84" />
 
-        <PackageReference Include="Soenneker.Utils.MemoryStream" Version="1.0.63" />
+        <PackageReference Include="Soenneker.Utils.MemoryStream" Version="1.0.67" />
 
         <PackageReference Include="Soenneker.Utils.Method" Version="1.0.33" />
     </ItemGroup>
