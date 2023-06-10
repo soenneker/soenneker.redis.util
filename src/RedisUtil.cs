@@ -32,7 +32,7 @@ public class RedisUtil : IRedisUtil
     private readonly IRedisClient _redisClient;
     private readonly IBackgroundQueue _backgroundQueue;
 
-    public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient, IBackgroundQueue backgroundQueue, IMemoryStreamUtil memoryStreamUtil)
+    public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient, IBackgroundQueue backgroundQueue)
     {
         _log = config.GetValue<bool>("Azure:Redis:Log");
 
