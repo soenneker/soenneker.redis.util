@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Soenneker.Redis.Client.Registrars;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Utils.BackgroundQueue.Registrars;
-using Soenneker.Utils.MemoryStream.Registrars;
 
 namespace Soenneker.Redis.Util.Registrars;
 
