@@ -31,7 +31,6 @@ public class RedisUtil : IRedisUtil
     private readonly ILogger<RedisUtil> _logger;
     private readonly IRedisClient _redisClient;
     private readonly IBackgroundQueue _backgroundQueue;
-    private readonly IMemoryStreamUtil _memoryStreamUtil;
 
     public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient, IBackgroundQueue backgroundQueue, IMemoryStreamUtil memoryStreamUtil)
     {
@@ -42,7 +41,6 @@ public class RedisUtil : IRedisUtil
         _jsonOptionType = _log ? JsonOptionType.Pretty : JsonOptionType.Web;
         _redisClient = redisClient;
         _backgroundQueue = backgroundQueue;
-        _memoryStreamUtil = memoryStreamUtil;
     }
 
     public ValueTask<T?> Get<T>(string cacheKey, string? key) where T : class
@@ -54,14 +52,14 @@ public class RedisUtil : IRedisUtil
 
     public async ValueTask<T?> Get<T>(string redisKey) where T : class
     {
-        Lease<byte>? cacheValue = await GetLease(redisKey);
+        string? cacheValue = await GetString(redisKey);
 
         if (cacheValue == null)
             return default;
 
         try
         {
-            var deserialized = JsonUtil.Deserialize<T>(cacheValue.Span);
+            var deserialized = JsonUtil.Deserialize<T>(cacheValue);
             return deserialized;
         }
         catch (Exception e)
@@ -212,7 +210,7 @@ public class RedisUtil : IRedisUtil
             return;
         }
 
-        RedisValue? redisValue = await SerializeValue(redisKey, value);
+        RedisValue? redisValue = SerializeIntoValue(redisKey, value);
 
         if (redisValue == null)
             return;
@@ -253,25 +251,19 @@ public class RedisUtil : IRedisUtil
         return InternalRedisValueSet(redisKey, redisValue, expiration);
     }
 
-    private async ValueTask<RedisValue?> SerializeValue<T>(RedisKey redisKey, T value)
+    private RedisValue? SerializeIntoValue<T>(RedisKey redisKey, T value)
     {
-        MemoryStream memoryStream = await _memoryStreamUtil.Get();
-
         RedisValue redisValue;
 
         try
         {
-            await JsonUtil.SerializeIntoStream(memoryStream, value, _jsonOptionType);
-            redisValue = RedisValue.CreateFrom(memoryStream);
+            string? serialized = JsonUtil.Serialize(value, _jsonOptionType);
+            redisValue = new RedisValue(serialized!);
         }
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error serializing object with key: {key}", redisKey);
             return null;
-        }
-        finally
-        {
-            await memoryStream.DisposeAsync();
         }
 
         return redisValue;
@@ -349,8 +341,8 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-           return _backgroundQueue.QueueValueTask( _ => InternalKeyDelete(redisKey));
-        
+            return _backgroundQueue.QueueValueTask(_ => InternalKeyDelete(redisKey));
+
         return InternalKeyDelete(redisKey);
     }
 

@@ -19,7 +19,6 @@ public static class RedisUtilRegistrar
     {
         services.AddBackgroundQueue();
         services.AddRedisClientAsSingleton();
-        services.AddMemoryStreamUtil();
         services.TryAddSingleton<IRedisUtil, RedisUtil>();
     }
 }
