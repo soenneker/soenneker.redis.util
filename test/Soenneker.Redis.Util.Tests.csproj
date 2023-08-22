@@ -11,7 +11,7 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="7.0.0" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Abstractions" Version="7.0.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.1" />
-        <PackageReference Include="Soenneker.Documents.Document" Version="1.0.178" />
+        <PackageReference Include="Soenneker.Documents.Document" Version="1.0.181" />
         <PackageReference Include="Soenneker.Facts.Manual" Version="1.0.55" />
         <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="1.0.184" />
         <PackageReference Include="Soenneker.Utils.Test" Version="1.0.38" />
