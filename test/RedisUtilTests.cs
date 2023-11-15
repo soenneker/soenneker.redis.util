@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Soenneker.Extensions.String;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Redis.Util.Tests.Dtos;
@@ -27,8 +28,12 @@ public class RedisUtilTests : FixturedUnitTest
 
         await _util.Set("test", key, value);
 
+        Logger.LogInformation("Testing");
+
         string? rtnValue = await _util.GetString("test", key);
         rtnValue.Should().Be(value);
+
+        await Task.Delay(1000);
     }
 
     [Fact]
