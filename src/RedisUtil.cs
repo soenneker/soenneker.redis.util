@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Soenneker.Enums.JsonOptions;
 using Soenneker.Extensions.Enumerable;
 using Soenneker.Extensions.String;
+using Soenneker.Extensions.Task;
+using Soenneker.Extensions.ValueTask;
 using Soenneker.Redis.Client.Abstract;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Utils.BackgroundQueue.Abstract;
@@ -50,7 +52,7 @@ public class RedisUtil : IRedisUtil
 
     public async ValueTask<T?> Get<T>(string redisKey) where T : class
     {
-        string? cacheValue = await GetString(redisKey);
+        string? cacheValue = await GetString(redisKey).NoSync();
 
         if (cacheValue == null)
             return default;
@@ -70,7 +72,7 @@ public class RedisUtil : IRedisUtil
 
     public async ValueTask<T?> GetHash<T>(string redisKey, string field) where T : class
     {
-        string? cacheValue = await GetHash(redisKey, field);
+        string? cacheValue = await GetHash(redisKey, field).NoSync();
 
         if (cacheValue == null)
             return default;
@@ -107,9 +109,9 @@ public class RedisUtil : IRedisUtil
         try
         {
             // this is a cheap pass-thru object, and does not need to be stored
-            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+            IDatabase database = (await _redisClient.GetClient().NoSync()).GetDatabase();
 
-            string? value = await database.StringGetAsync(redisKey);
+            string? value = await database.StringGetAsync(redisKey).NoSync();
 
             if (!_log)
                 return value;
@@ -140,9 +142,9 @@ public class RedisUtil : IRedisUtil
         try
         {
             // this is a cheap pass-thru object, and does not need to be stored
-            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+            IDatabase database = (await _redisClient.GetClient().NoSync()).GetDatabase();
 
-            Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey);
+            Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey).NoSync();
 
             if (!_log)
                 return lease;
@@ -171,9 +173,9 @@ public class RedisUtil : IRedisUtil
         try
         {
             // this is a cheap pass-thru object, and does not need to be stored
-            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+            IDatabase database = (await _redisClient.GetClient().NoSync()).GetDatabase();
 
-            string? value = await database.HashGetAsync(redisKey, field);
+            string? value = await database.HashGetAsync(redisKey, field).NoSync();
 
             if (!_log)
                 return value;
@@ -215,7 +217,7 @@ public class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration));
+            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration)).NoSync();
             return;
         }
 
@@ -271,9 +273,9 @@ public class RedisUtil : IRedisUtil
     {
         try
         {
-            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+            IDatabase database = (await _redisClient.GetClient().NoSync()).GetDatabase();
 
-            await database.StringSetAsync(redisKey, redisValue, expiration);
+            await database.StringSetAsync(redisKey, redisValue, expiration).NoSync();
 
             if (_log)
             {
@@ -311,9 +313,9 @@ public class RedisUtil : IRedisUtil
     {
         try
         {
-            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+            IDatabase database = (await _redisClient.GetClient().NoSync()).GetDatabase();
 
-            await database.HashSetAsync(redisKey, field, redisValue);
+            await database.HashSetAsync(redisKey, field, redisValue).NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Set HASH key: {key} \r\n {redisValue}", redisKey, redisValue);
@@ -348,9 +350,9 @@ public class RedisUtil : IRedisUtil
     {
         try
         {
-            IDatabase database = (await _redisClient.GetClient()).GetDatabase();
+            IDatabase database = (await _redisClient.GetClient().NoSync()).GetDatabase();
 
-            await database.KeyDeleteAsync(redisKey);
+            await database.KeyDeleteAsync(redisKey).NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Removed key: {key}", redisKey);
