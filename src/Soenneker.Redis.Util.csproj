@@ -43,7 +43,7 @@
 
         <PackageReference Include="Soenneker.Extensions.ValueTask" Version="2.1.6" />
 
-        <PackageReference Include="Soenneker.Redis.Client" Version="2.1.74" />
+        <PackageReference Include="Soenneker.Redis.Client" Version="2.1.77" />
 
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="2.1.97" />
 
