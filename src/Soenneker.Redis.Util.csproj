@@ -41,7 +41,7 @@
 
         <PackageReference Include="Soenneker.Extensions.Enumerable" Version="2.1.23" />
 
-        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="2.1.23" />
+        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="2.1.24" />
 
         <PackageReference Include="Soenneker.Redis.Client" Version="2.1.105" />
 
