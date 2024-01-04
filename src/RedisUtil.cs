@@ -221,7 +221,7 @@ public class RedisUtil : IRedisUtil
             return;
         }
 
-        await InternalRedisValueSet(redisKey, redisValue.Value, expiration);
+        await InternalRedisValueSet(redisKey, redisValue.Value, expiration).NoSync();
     }
 
     public ValueTask Set(string cacheKey, string? key, string value, TimeSpan? expiration = null, bool useQueue = false)
