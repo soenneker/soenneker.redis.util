@@ -7,7 +7,7 @@ namespace Soenneker.Redis.Util.Tests;
 /// to be the place to apply [CollectionDefinition] and all the
 /// ICollectionFixture interfaces.
 /// </summary>
-[CollectionDefinition("RedisCollection")]
-public class RedisCollection : ICollectionFixture<RedisUtilFixture>
+[CollectionDefinition("Collection")]
+public class Collection : ICollectionFixture<Fixture>
 {
 }

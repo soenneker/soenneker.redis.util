@@ -10,12 +10,12 @@ using Xunit.Abstractions;
 
 namespace Soenneker.Redis.Util.Tests;
 
-[Collection("RedisCollection")]
+[Collection("Collection")]
 public class RedisUtilTests : FixturedUnitTest
 {
     private readonly IRedisUtil _util;
 
-    public RedisUtilTests(RedisUtilFixture fixture, ITestOutputHelper outputHelper) : base(fixture, outputHelper)
+    public RedisUtilTests(Fixture fixture, ITestOutputHelper outputHelper) : base(fixture, outputHelper)
     {
         _util = Resolve<IRedisUtil>();
     }
@@ -72,7 +72,7 @@ public class RedisUtilTests : FixturedUnitTest
     }
 
     [Fact]
-    public void Get_key_should_produce_expected()
+    public void BuildKey_should_produce_expected()
     {
         string? key = Faker.Random.AlphaNumeric(25);
 
@@ -82,7 +82,18 @@ public class RedisUtilTests : FixturedUnitTest
     }
 
     [Fact]
-    public void Get_key_with_malicious_key_should_produce_expected()
+    public void BuildKey_multiple_should_produce_expected()
+    {
+        string? key1 = Faker.Random.AlphaNumeric(25);
+        string? key2 = Faker.Random.AlphaNumeric(25);
+
+        string result = RedisUtil.BuildKey("test", key1, key2);
+
+        result.Should().Be($"test:{key1}:{key2}");
+    }
+
+    [Fact]
+    public void BuildKey_with_malicious_key_should_produce_expected()
     {
         var key = " ; ' test";
         string result = RedisUtil.BuildKey("test", key);
