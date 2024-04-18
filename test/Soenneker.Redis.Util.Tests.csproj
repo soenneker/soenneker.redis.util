@@ -14,7 +14,7 @@
         <PackageReference Include="Soenneker.Documents.Document" Version="2.1.752" />
         <PackageReference Include="Soenneker.Facts.Manual" Version="2.1.104" />
         <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="2.1.694" />
-        <PackageReference Include="Soenneker.Utils.Test" Version="2.1.189" />
+        <PackageReference Include="Soenneker.Utils.Test" Version="2.1.190" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.5.8">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
