@@ -393,8 +393,10 @@ public class RedisUtil : IRedisUtil
 
         // Calculate the length of the resulting string
         int totalLength = cacheKey.Length;
-        foreach (string? key in keys)
+
+        for (var i = 0; i < keys.Length; i++)
         {
+            string? key = keys[i];
             if (key != null)
             {
                 totalLength += 1 + key.ToEscaped().Length; // Add 1 for the ':' separator
@@ -402,7 +404,8 @@ public class RedisUtil : IRedisUtil
         }
 
         // Create a character span to store the result
-        char[] resultArray = new char[totalLength];
+        var resultArray = new char[totalLength];
+
         Span<char> result = resultArray;
 
         // Copy cacheKey into the result array
@@ -410,18 +413,20 @@ public class RedisUtil : IRedisUtil
         result = result.Slice(cacheKey.Length);
 
         // Append keys to the result array
-        foreach (var key in keys)
+        for (var i = 0; i < keys.Length; i++)
         {
-            if (key != null)
-            {
-                result[0] = ':';
-                result = result.Slice(1);
+            string? key = keys[i];
 
-                var escaped = key.ToEscaped();
+            if (key == null)
+                continue;
 
-                escaped.AsSpan().CopyTo(result);
-                result = result.Slice(escaped.Length);
-            }
+            result[0] = ':';
+            result = result.Slice(1);
+
+            string escaped = key.ToEscaped();
+
+            escaped.AsSpan().CopyTo(result);
+            result = result.Slice(escaped.Length);
         }
 
         return new string(resultArray);
