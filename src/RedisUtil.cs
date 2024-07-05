@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
+using System.Threading;
 using System.Threading.Tasks;
 using Humanizer;
 using Microsoft.Extensions.Configuration;
@@ -40,16 +41,16 @@ public class RedisUtil : IRedisUtil
         _backgroundQueue = backgroundQueue;
     }
 
-    public ValueTask<T?> Get<T>(string cacheKey, string? key) where T : class
+    public ValueTask<T?> Get<T>(string cacheKey, string? key, CancellationToken cancellationToken = default) where T : class
     {
         string redisKey = BuildKey(cacheKey, key);
 
-        return Get<T>(redisKey);
+        return Get<T>(redisKey, cancellationToken);
     }
 
-    public async ValueTask<T?> Get<T>(string redisKey) where T : class
+    public async ValueTask<T?> Get<T>(string redisKey, CancellationToken cancellationToken = default) where T : class
     {
-        string? cacheValue = await GetString(redisKey).NoSync();
+        string? cacheValue = await GetString(redisKey, cancellationToken).NoSync();
 
         if (cacheValue == null)
             return default;
@@ -67,9 +68,9 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public async ValueTask<T?> GetHash<T>(string redisKey, string field) where T : class
+    public async ValueTask<T?> GetHash<T>(string redisKey, string field, CancellationToken cancellationToken = default) where T : class
     {
-        string? cacheValue = await GetHash(redisKey, field).NoSync();
+        string? cacheValue = await GetHash(redisKey, field, cancellationToken).NoSync();
 
         if (cacheValue == null)
             return default;
@@ -88,14 +89,14 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public ValueTask<string?> GetString(string cacheKey, string? key)
+    public ValueTask<string?> GetString(string cacheKey, string? key, CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
 
-        return GetString(redisKey);
+        return GetString(redisKey, cancellationToken);
     }
 
-    public async ValueTask<string?> GetString(string redisKey)
+    public async ValueTask<string?> GetString(string redisKey, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -106,7 +107,7 @@ public class RedisUtil : IRedisUtil
         try
         {
             // this is a cheap pass-thru object, and does not need to be stored
-            IDatabase database = (await _redisClient.Get().NoSync()).GetDatabase();
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
 
             string? value = await database.StringGetAsync(redisKey).NoSync();
 
@@ -128,7 +129,7 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    private async ValueTask<Lease<byte>?> GetLease(string redisKey)
+    private async ValueTask<Lease<byte>?> GetLease(string redisKey, CancellationToken cancellationToken)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -139,7 +140,7 @@ public class RedisUtil : IRedisUtil
         try
         {
             // this is a cheap pass-thru object, and does not need to be stored
-            IDatabase database = (await _redisClient.Get().NoSync()).GetDatabase();
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
 
             Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey).NoSync();
 
@@ -159,7 +160,7 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public async ValueTask<string?> GetHash(string redisKey, string field)
+    public async ValueTask<string?> GetHash(string redisKey, string field, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -170,7 +171,7 @@ public class RedisUtil : IRedisUtil
         try
         {
             // this is a cheap pass-thru object, and does not need to be stored
-            IDatabase database = (await _redisClient.Get().NoSync()).GetDatabase();
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
 
             string? value = await database.HashGetAsync(redisKey, field).NoSync();
 
@@ -192,14 +193,14 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false) where T : class
+    public ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default) where T : class
     {
         string redisKey = BuildKey(cacheKey, key);
 
-        return Set(redisKey, value, expiration, useQueue);
+        return Set(redisKey, value, expiration, useQueue, cancellationToken);
     }
 
-    public async ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false) where T : class
+    public async ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default) where T : class
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -214,21 +215,21 @@ public class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration)).NoSync();
+            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken)).NoSync();
             return;
         }
 
-        await InternalRedisValueSet(redisKey, redisValue.Value, expiration).NoSync();
+        await InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken).NoSync();
     }
 
-    public ValueTask Set(string cacheKey, string? key, string value, TimeSpan? expiration = null, bool useQueue = false)
+    public ValueTask Set(string cacheKey, string? key, string value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
 
-        return Set(redisKey, value, expiration, useQueue);
+        return Set(redisKey, value, expiration, useQueue, cancellationToken);
     }
 
-    public ValueTask Set(string redisKey, string redisValue, TimeSpan? expiration = null, bool useQueue = false)
+    public ValueTask Set(string redisKey, string redisValue, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -243,9 +244,9 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-            return _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue, expiration));
+            return _backgroundQueue.QueueValueTask(token => InternalRedisValueSet(redisKey, redisValue, expiration, token));
 
-        return InternalRedisValueSet(redisKey, redisValue, expiration);
+        return InternalRedisValueSet(redisKey, redisValue, expiration, cancellationToken);
     }
 
     private RedisValue? SerializeIntoValue<T>(RedisKey redisKey, T value)
@@ -266,11 +267,11 @@ public class RedisUtil : IRedisUtil
         return redisValue;
     }
 
-    private async ValueTask InternalRedisValueSet(RedisKey redisKey, RedisValue redisValue, TimeSpan? expiration = null)
+    private async ValueTask InternalRedisValueSet(RedisKey redisKey, RedisValue redisValue, TimeSpan? expiration, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get().NoSync()).GetDatabase();
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
 
             await database.StringSetAsync(redisKey, redisValue, expiration).NoSync();
 
@@ -286,7 +287,7 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public ValueTask SetHash(string redisKey, string field, string redisValue, bool useQueue = false)
+    public ValueTask SetHash(string redisKey, string field, string redisValue, bool useQueue = false, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -301,16 +302,16 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-            return _backgroundQueue.QueueValueTask(_ => InternalHashSet(redisKey, field, redisValue));
+            return _backgroundQueue.QueueValueTask(token => InternalHashSet(redisKey, field, redisValue, token));
 
-        return InternalHashSet(redisKey, field, redisValue);
+        return InternalHashSet(redisKey, field, redisValue, cancellationToken);
     }
 
-    private async ValueTask InternalHashSet(string redisKey, string field, string redisValue)
+    private async ValueTask InternalHashSet(string redisKey, string field, string redisValue, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get().NoSync()).GetDatabase();
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
 
             await database.HashSetAsync(redisKey, field, redisValue).NoSync();
 
@@ -323,13 +324,13 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public ValueTask Remove(string cacheKey, string? key, bool useQueue = false)
+    public ValueTask Remove(string cacheKey, string? key, bool useQueue = false, CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
-        return Remove(redisKey, useQueue);
+        return Remove(redisKey, useQueue, cancellationToken);
     }
 
-    public ValueTask Remove(string redisKey, bool useQueue = false)
+    public ValueTask Remove(string redisKey, bool useQueue = false, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -338,16 +339,16 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-            return _backgroundQueue.QueueValueTask(_ => InternalKeyDelete(redisKey));
+            return _backgroundQueue.QueueValueTask(token => InternalKeyDelete(redisKey, token));
 
-        return InternalKeyDelete(redisKey);
+        return InternalKeyDelete(redisKey, cancellationToken);
     }
 
-    private async ValueTask InternalKeyDelete(string redisKey)
+    private async ValueTask InternalKeyDelete(string redisKey, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get().NoSync()).GetDatabase();
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
 
             await database.KeyDeleteAsync(redisKey).NoSync();
 
