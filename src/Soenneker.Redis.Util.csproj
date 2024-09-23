@@ -41,6 +41,6 @@
         <PackageReference Include="Soenneker.Redis.Client" Version="2.1.1072" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="2.1.1414" />
         <PackageReference Include="Soenneker.Utils.Json" Version="2.1.1246" />
-        <PackageReference Include="Soenneker.Utils.Method" Version="2.1.316" />
+        <PackageReference Include="Soenneker.Utils.Method" Version="2.1.317" />
     </ItemGroup>
 </Project>
