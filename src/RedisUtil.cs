@@ -215,7 +215,7 @@ public class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken)).NoSync();
+            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken), cancellationToken).NoSync();
             return;
         }
 
@@ -244,7 +244,7 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-            return _backgroundQueue.QueueValueTask(token => InternalRedisValueSet(redisKey, redisValue, expiration, token));
+            return _backgroundQueue.QueueValueTask(token => InternalRedisValueSet(redisKey, redisValue, expiration, token), cancellationToken);
 
         return InternalRedisValueSet(redisKey, redisValue, expiration, cancellationToken);
     }
@@ -302,7 +302,7 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-            return _backgroundQueue.QueueValueTask(token => InternalHashSet(redisKey, field, redisValue, token));
+            return _backgroundQueue.QueueValueTask(token => InternalHashSet(redisKey, field, redisValue, token), cancellationToken);
 
         return InternalHashSet(redisKey, field, redisValue, cancellationToken);
     }
@@ -339,7 +339,7 @@ public class RedisUtil : IRedisUtil
         }
 
         if (useQueue)
-            return _backgroundQueue.QueueValueTask(token => InternalKeyDelete(redisKey, token));
+            return _backgroundQueue.QueueValueTask(token => InternalKeyDelete(redisKey, token), cancellationToken);
 
         return InternalKeyDelete(redisKey, cancellationToken);
     }
