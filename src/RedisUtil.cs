@@ -215,7 +215,7 @@ public class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            await _backgroundQueue.QueueValueTask(_ => InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken), cancellationToken).NoSync();
+            await _backgroundQueue.QueueValueTask(token => InternalRedisValueSet(redisKey, redisValue.Value, expiration, token), cancellationToken).NoSync();
             return;
         }
 
