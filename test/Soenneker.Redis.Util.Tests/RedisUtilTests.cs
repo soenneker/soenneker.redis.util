@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Soenneker.Extensions.String;
@@ -6,7 +6,7 @@ using Soenneker.Redis.Util.Abstract;
 using Soenneker.Redis.Util.Tests.Dtos;
 using Soenneker.Tests.FixturedUnit;
 using Xunit;
-using Xunit.Abstractions;
+
 
 namespace Soenneker.Redis.Util.Tests;
 
