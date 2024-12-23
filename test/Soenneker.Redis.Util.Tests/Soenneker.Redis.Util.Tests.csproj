@@ -13,7 +13,7 @@
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
         <PackageReference Include="Soenneker.Documents.Document" Version="3.0.1761" />
         <PackageReference Include="Soenneker.Facts.Manual" Version="3.0.123" />
-        <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="3.0.1403" />
+        <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="3.0.1405" />
         <PackageReference Include="Soenneker.Utils.Test" Version="3.0.254" />
         <PackageReference Include="xunit.runner.visualstudio" Version="3.0.0">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
