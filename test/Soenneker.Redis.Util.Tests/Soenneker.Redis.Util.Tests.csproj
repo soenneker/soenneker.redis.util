@@ -9,7 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-        <PackageReference Include="Soenneker.Documents.Document" Version="3.0.1888" />
+        <PackageReference Include="Soenneker.Documents.Document" Version="3.0.1890" />
         <PackageReference Include="Soenneker.Facts.Manual" Version="3.0.131" />
         <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="3.0.1482" />
         <PackageReference Include="Soenneker.Utils.Test" Version="3.0.261" />
