@@ -53,12 +53,11 @@ public class RedisUtil : IRedisUtil
         string? cacheValue = await GetString(redisKey, cancellationToken).NoSync();
 
         if (cacheValue == null)
-            return default;
+            return null;
 
         try
         {
-            var deserialized = JsonUtil.Deserialize<T>(cacheValue);
-            return deserialized;
+            return JsonUtil.Deserialize<T>(cacheValue);
         }
         catch (Exception e)
         {
@@ -73,13 +72,11 @@ public class RedisUtil : IRedisUtil
         string? cacheValue = await GetHash(redisKey, field, cancellationToken).NoSync();
 
         if (cacheValue == null)
-            return default;
+            return null;
 
         try
         {
-            var deserialized = JsonUtil.Deserialize<T>(cacheValue);
-
-            return deserialized;
+            return JsonUtil.Deserialize<T>(cacheValue);
         }
         catch (Exception e)
         {
