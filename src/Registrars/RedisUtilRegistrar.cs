@@ -14,10 +14,21 @@ public static class RedisUtilRegistrar
     /// <summary>
     /// Adds <see cref="IRedisUtil"/> as a singleton service. <para/>
     /// </summary>
-    public static void AddRedisUtilAsSingleton(this IServiceCollection services)
+    public static IServiceCollection AddRedisUtilAsSingleton(this IServiceCollection services)
     {
         services.AddBackgroundQueue();
         services.AddRedisClientAsSingleton();
         services.TryAddSingleton<IRedisUtil, RedisUtil>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddRedisUtilAsScoped(this IServiceCollection services)
+    {
+        services.AddBackgroundQueue();
+        services.AddRedisClientAsSingleton();
+        services.TryAddScoped<IRedisUtil, RedisUtil>();
+
+        return services;
     }
 }
