@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
         <PackageReference Include="Soenneker.Documents.Document" Version="3.0.2211" />
         <PackageReference Include="Soenneker.Facts.Manual" Version="3.0.136" />
         <PackageReference Include="Soenneker.Tests.FixturedUnit" Version="3.0.1655" />
