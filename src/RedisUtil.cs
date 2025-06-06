@@ -20,7 +20,7 @@ namespace Soenneker.Redis.Util;
 
 // TODO: Time to break this up
 /// <inheritdoc cref="IRedisUtil"/>
-public class RedisUtil : IRedisUtil
+public sealed class RedisUtil : IRedisUtil
 {
     private readonly bool _log;
 
@@ -408,6 +408,52 @@ public class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error decrementing key: {key} by {delta}", redisKey, delta);
+            return null;
+        }
+    }
+
+    public ValueTask<long?> Increment(string cacheKey, string? key, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default)
+    {
+        string redisKey = BuildKey(cacheKey, key);
+        return Increment(redisKey, delta, useQueue, cancellationToken);
+    }
+
+    public async ValueTask<long?> Increment(string redisKey, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            _logger.LogError(">> REDIS: Skipping Increment because the key is null or empty");
+            return null;
+        }
+
+        if (useQueue)
+        {
+            // Fire-and-forget: queue the increment and return null immediately
+            await _backgroundQueue.QueueValueTask(async token => await InternalStringIncrement(redisKey, delta, token), cancellationToken).NoSync();
+            return null;
+        }
+
+        // Run the increment immediately
+        return await InternalStringIncrement(redisKey, delta, cancellationToken).NoSync();
+    }
+
+    private async ValueTask<long?> InternalStringIncrement(string redisKey, long delta, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
+
+            // Increment by 'delta'; if no key exists, Redis creates it at 0 first, then adds.
+            long newValue = await database.StringIncrementAsync(redisKey, delta).NoSync();
+
+            if (_log)
+                _logger.LogDebug(">> REDIS: Incremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
+
+            return newValue;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error incrementing key: {key} by {delta}", redisKey, delta);
             return null;
         }
     }
