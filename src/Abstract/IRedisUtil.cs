@@ -61,4 +61,16 @@ public interface IRedisUtil
 
     /// <summary> Base method for Remove()</summary>
     ValueTask Remove(string redisKey, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decrement the integer value stored at "cacheKey:key" by the specified delta. 
+    /// Returns the new value, or null if queued or on error.
+    /// </summary>
+    ValueTask<long?> Decrement(string cacheKey, string? key, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decrement the integer value stored at redisKey by the specified delta. 
+    /// Returns the new value, or null if queued or on error.
+    /// </summary>
+    ValueTask<long?> Decrement(string redisKey, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default);
 }

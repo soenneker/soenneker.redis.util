@@ -190,14 +190,16 @@ public class RedisUtil : IRedisUtil
         }
     }
 
-    public ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default) where T : class
+    public ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false,
+        CancellationToken cancellationToken = default) where T : class
     {
         string redisKey = BuildKey(cacheKey, key);
 
         return Set(redisKey, value, expiration, useQueue, cancellationToken);
     }
 
-    public async ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default) where T : class
+    public async ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
+        where T : class
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -219,7 +221,8 @@ public class RedisUtil : IRedisUtil
         await InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken).NoSync();
     }
 
-    public ValueTask Set(string cacheKey, string? key, string value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
+    public ValueTask Set(string cacheKey, string? key, string value, TimeSpan? expiration = null, bool useQueue = false,
+        CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
 
@@ -355,6 +358,57 @@ public class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error removing key: {key}", redisKey);
+        }
+    }
+
+    public ValueTask<long?> Decrement(string cacheKey, string? key, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default)
+    {
+        string redisKey = BuildKey(cacheKey, key);
+
+        return Decrement(redisKey, delta, useQueue, cancellationToken);
+    }
+
+    public async ValueTask<long?> Decrement(string redisKey, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            _logger.LogError(">> REDIS: Skipping Decrement because the key is null or empty");
+            return null;
+        }
+
+        if (useQueue)
+        {
+            // Fire-and-forget: queue the decrement and return null immediately
+            await _backgroundQueue.QueueValueTask(async token => await InternalStringDecrement(redisKey, delta, token), cancellationToken).NoSync();
+            return null;
+        }
+
+        // Run the decrement immediately
+        return await InternalStringDecrement(redisKey, delta, cancellationToken).NoSync();
+    }
+
+    /// <summary>
+    /// Helper that actually issues StringDecrementAsync(redisKey, delta) 
+    /// and logs the result. Returns the new long value (or null on error).
+    /// </summary>
+    private async ValueTask<long?> InternalStringDecrement(string redisKey, long delta, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
+
+            // Decrement by 'delta'; if no key exists, Redis creates it at 0 first, then subtracts.
+            long newValue = await database.StringDecrementAsync(redisKey, delta).NoSync();
+
+            if (_log)
+                _logger.LogDebug(">> REDIS: Decremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
+
+            return newValue;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error decrementing key: {key} by {delta}", redisKey, delta);
+            return null;
         }
     }
 
