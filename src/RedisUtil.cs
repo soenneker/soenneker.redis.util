@@ -23,9 +23,7 @@ namespace Soenneker.Redis.Util;
 public sealed class RedisUtil : IRedisUtil
 {
     private readonly bool _log;
-
     private readonly JsonOptionType _jsonOptionType;
-
     private readonly ILogger<RedisUtil> _logger;
     private readonly IRedisClient _redisClient;
     private readonly IBackgroundQueue _backgroundQueue;
@@ -33,9 +31,7 @@ public sealed class RedisUtil : IRedisUtil
     public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient, IBackgroundQueue backgroundQueue)
     {
         _log = config.GetValue<bool>("Azure:Redis:Log");
-
         _logger = logger;
-
         _jsonOptionType = _log ? JsonOptionType.Pretty : JsonOptionType.Web;
         _redisClient = redisClient;
         _backgroundQueue = backgroundQueue;
@@ -44,16 +40,13 @@ public sealed class RedisUtil : IRedisUtil
     public ValueTask<T?> Get<T>(string cacheKey, string? key, CancellationToken cancellationToken = default) where T : class
     {
         string redisKey = BuildKey(cacheKey, key);
-
         return Get<T>(redisKey, cancellationToken);
     }
 
     public async ValueTask<T?> Get<T>(string redisKey, CancellationToken cancellationToken = default) where T : class
     {
         string? cacheValue = await GetString(redisKey, cancellationToken).NoSync();
-
-        if (cacheValue == null)
-            return null;
+        if (cacheValue == null) return null;
 
         try
         {
@@ -62,7 +55,6 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error deserializing object with key: {key} and value: {value}", redisKey, cacheValue);
-
             return null;
         }
     }
@@ -70,9 +62,7 @@ public sealed class RedisUtil : IRedisUtil
     public async ValueTask<T?> GetHash<T>(string redisKey, string field, CancellationToken cancellationToken = default) where T : class
     {
         string? cacheValue = await GetHash(redisKey, field, cancellationToken).NoSync();
-
-        if (cacheValue == null)
-            return null;
+        if (cacheValue == null) return null;
 
         try
         {
@@ -81,7 +71,6 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error deserializing object with key: {key} and value: {value}", redisKey, cacheValue);
-
             return null;
         }
     }
@@ -89,7 +78,6 @@ public sealed class RedisUtil : IRedisUtil
     public ValueTask<string?> GetString(string cacheKey, string? key, CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
-
         return GetString(redisKey, cancellationToken);
     }
 
@@ -103,13 +91,10 @@ public sealed class RedisUtil : IRedisUtil
 
         try
         {
-            // this is a cheap pass-thru object, and does not need to be stored
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
             string? value = await database.StringGetAsync(redisKey).NoSync();
 
-            if (!_log)
-                return value;
+            if (!_log) return value;
 
             if (value == null)
                 _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
@@ -121,7 +106,6 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error getting key: {key}", redisKey);
-
             return null;
         }
     }
@@ -136,13 +120,10 @@ public sealed class RedisUtil : IRedisUtil
 
         try
         {
-            // this is a cheap pass-thru object, and does not need to be stored
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
             Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey).NoSync();
 
-            if (!_log)
-                return lease;
+            if (!_log) return lease;
 
             if (lease == null)
                 _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
@@ -152,7 +133,6 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error getting key: {key}", redisKey);
-
             return null;
         }
     }
@@ -167,13 +147,10 @@ public sealed class RedisUtil : IRedisUtil
 
         try
         {
-            // this is a cheap pass-thru object, and does not need to be stored
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
             string? value = await database.HashGetAsync(redisKey, field).NoSync();
 
-            if (!_log)
-                return value;
+            if (!_log) return value;
 
             if (value == null)
                 _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
@@ -185,7 +162,6 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error getting key: {key}", redisKey);
-
             return null;
         }
     }
@@ -194,7 +170,6 @@ public sealed class RedisUtil : IRedisUtil
         CancellationToken cancellationToken = default) where T : class
     {
         string redisKey = BuildKey(cacheKey, key);
-
         return Set(redisKey, value, expiration, useQueue, cancellationToken);
     }
 
@@ -208,9 +183,7 @@ public sealed class RedisUtil : IRedisUtil
         }
 
         RedisValue? redisValue = SerializeIntoValue(redisKey, value);
-
-        if (redisValue == null)
-            return;
+        if (redisValue == null) return;
 
         if (useQueue)
         {
@@ -225,7 +198,6 @@ public sealed class RedisUtil : IRedisUtil
         CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
-
         return Set(redisKey, value, expiration, useQueue, cancellationToken);
     }
 
@@ -251,20 +223,16 @@ public sealed class RedisUtil : IRedisUtil
 
     private RedisValue? SerializeIntoValue<T>(RedisKey redisKey, T value)
     {
-        RedisValue redisValue;
-
         try
         {
             string? serialized = JsonUtil.Serialize(value, _jsonOptionType);
-            redisValue = new RedisValue(serialized!);
+            return new RedisValue(serialized!);
         }
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error serializing object with key: {key}", redisKey);
             return null;
         }
-
-        return redisValue;
     }
 
     private async ValueTask InternalRedisValueSet(RedisKey redisKey, RedisValue redisValue, TimeSpan? expiration, CancellationToken cancellationToken)
@@ -272,7 +240,6 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
             await database.StringSetAsync(redisKey, redisValue, expiration).NoSync();
 
             if (_log)
@@ -312,7 +279,6 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
             await database.HashSetAsync(redisKey, field, redisValue).NoSync();
 
             if (_log)
@@ -349,7 +315,6 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
             await database.KeyDeleteAsync(redisKey).NoSync();
 
             if (_log)
@@ -364,7 +329,6 @@ public sealed class RedisUtil : IRedisUtil
     public ValueTask<long?> Decrement(string cacheKey, string? key, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default)
     {
         string redisKey = BuildKey(cacheKey, key);
-
         return Decrement(redisKey, delta, useQueue, cancellationToken);
     }
 
@@ -378,12 +342,10 @@ public sealed class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            // Fire-and-forget: queue the decrement and return null immediately
             await _backgroundQueue.QueueValueTask(async token => await InternalStringDecrement(redisKey, delta, token), cancellationToken).NoSync();
             return null;
         }
 
-        // Run the decrement immediately
         return await InternalStringDecrement(redisKey, delta, cancellationToken).NoSync();
     }
 
@@ -396,8 +358,6 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
-            // Decrement by 'delta'; if no key exists, Redis creates it at 0 first, then subtracts.
             long newValue = await database.StringDecrementAsync(redisKey, delta).NoSync();
 
             if (_log)
@@ -428,12 +388,10 @@ public sealed class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            // Fire-and-forget: queue the increment and return null immediately
             await _backgroundQueue.QueueValueTask(async token => await InternalStringIncrement(redisKey, delta, token), cancellationToken).NoSync();
             return null;
         }
 
-        // Run the increment immediately
         return await InternalStringIncrement(redisKey, delta, cancellationToken).NoSync();
     }
 
@@ -442,8 +400,6 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-
-            // Increment by 'delta'; if no key exists, Redis creates it at 0 first, then adds.
             long newValue = await database.StringIncrementAsync(redisKey, delta).NoSync();
 
             if (_log)
@@ -458,19 +414,104 @@ public sealed class RedisUtil : IRedisUtil
         }
     }
 
+    public ValueTask<bool> Expire(string cacheKey, string? key, TimeSpan? expiration, bool useQueue = false, CancellationToken cancellationToken = default)
+    {
+        string redisKey = BuildKey(cacheKey, key);
+        return Expire(redisKey, expiration, useQueue, cancellationToken);
+    }
+
+    public async ValueTask<bool> Expire(string redisKey, TimeSpan? expiration, bool useQueue = false, CancellationToken cancellationToken = default)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            _logger.LogError(">> REDIS: Skipping Expire because the key is null or empty");
+            return false;
+        }
+
+        if (expiration == null)
+        {
+            _logger.LogError(">> REDIS: Skipping Expire because the expiration is null");
+            return false;
+        }
+
+        if (useQueue)
+        {
+            await _backgroundQueue.QueueValueTask(async token => await InternalKeyExpire(redisKey, expiration, token), cancellationToken).NoSync();
+            return false;
+        }
+
+        return await InternalKeyExpire(redisKey, expiration, cancellationToken).NoSync();
+    }
+
+    private async ValueTask<bool> InternalKeyExpire(string redisKey, TimeSpan? expiration, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
+            bool result = await database.KeyExpireAsync(redisKey, expiration).NoSync();
+
+            if (_log)
+            {
+                string expirationStr = expiration!.Value.Humanize();
+                _logger.LogDebug(">> REDIS: Set expiration on key: {key} (expires in: {timespan}) Result: {result}", redisKey, expirationStr, result);
+            }
+
+            return result;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error setting expiration on key: {key}", redisKey);
+            return false;
+        }
+    }
+
+    public ValueTask<TimeSpan?> GetTimeToLive(string cacheKey, string? key, CancellationToken cancellationToken = default)
+    {
+        string redisKey = BuildKey(cacheKey, key);
+        return GetTimeToLive(redisKey, cancellationToken);
+    }
+
+    public async ValueTask<TimeSpan?> GetTimeToLive(string redisKey, CancellationToken cancellationToken = default)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            _logger.LogError(">> REDIS: Skipping GetTimeToLive because the key is null or empty");
+            return null;
+        }
+
+        try
+        {
+            IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
+            TimeSpan? ttl = await database.KeyTimeToLiveAsync(redisKey).NoSync();
+
+            if (_log)
+            {
+                if (ttl == null)
+                    _logger.LogDebug(">> REDIS: Key {key} does not exist or has no expiration", redisKey);
+                else
+                    _logger.LogDebug(">> REDIS: TTL for key: {key} is {timespan}", redisKey, ttl.Value.Humanize());
+            }
+
+            return ttl;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error getting TTL for key: {key}", redisKey);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Escapes the keys for safety
     /// </summary>
     [Pure]
     public static string BuildKey(string cacheKey, string? key)
     {
-        if (key == null)
-            return cacheKey;
+        if (key == null) return cacheKey;
 
         ReadOnlySpan<char> cacheKeySpan = cacheKey.AsSpan();
         ReadOnlySpan<char> escapedKeySpan = key.ToEscaped();
-
-        int totalLength = cacheKeySpan.Length + 1 + escapedKeySpan.Length; // Length of cacheKey + separator + length of escaped key
+        int totalLength = cacheKeySpan.Length + 1 + escapedKeySpan.Length;
 
         var buffer = new char[totalLength];
         cacheKeySpan.CopyTo(buffer);
@@ -486,43 +527,29 @@ public sealed class RedisUtil : IRedisUtil
     [Pure]
     public static string BuildKey(string cacheKey, params string?[] keys)
     {
-        if (keys.Length == 0)
-            return cacheKey;
+        if (keys.Length == 0) return cacheKey;
 
-        // Calculate the length of the resulting string
         int totalLength = cacheKey.Length;
-
         for (var i = 0; i < keys.Length; i++)
         {
             string? key = keys[i];
-            if (key != null)
-            {
-                totalLength += 1 + key.ToEscaped().Length; // Add 1 for the ':' separator
-            }
+            if (key != null) totalLength += 1 + key.ToEscaped().Length;
         }
 
-        // Create a character span to store the result
         var resultArray = new char[totalLength];
-
         Span<char> result = resultArray;
-
-        // Copy cacheKey into the result array
         cacheKey.AsSpan().CopyTo(result);
         result = result.Slice(cacheKey.Length);
 
-        // Append keys to the result array
         for (var i = 0; i < keys.Length; i++)
         {
             string? key = keys[i];
-
-            if (key == null)
-                continue;
+            if (key == null) continue;
 
             result[0] = ':';
             result = result.Slice(1);
 
             string escaped = key.ToEscaped();
-
             escaped.AsSpan().CopyTo(result);
             result = result.Slice(escaped.Length);
         }

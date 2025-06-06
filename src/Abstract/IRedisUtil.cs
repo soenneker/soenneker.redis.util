@@ -153,8 +153,8 @@ public interface IRedisUtil
     /// <param name="cancellationToken">
     /// A token to observe while waiting for the asynchronous operation to complete.
     /// </param>
-    ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false,
-        CancellationToken cancellationToken = default) where T : class;
+    ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
+        where T : class;
 
     /// <summary>
     /// Stores an object of type <typeparamref name="T"/> under the specified Redis key. 
@@ -399,4 +399,38 @@ public interface IRedisUtil
     /// </list>
     /// </returns>
     ValueTask<long?> Increment(string redisKey, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set an expiration on a key. Returns true if the expiration was set successfully.
+    /// </summary>
+    /// <param name="cacheKey">The base cache key (without any sub‐key).</param>
+    /// <param name="key">An optional sub‐key to append to the cacheKey.</param>
+    /// <param name="expiration">The TimeSpan after which the key should expire.</param>
+    /// <param name="useQueue">Whether to enqueue this operation in the background queue.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    ValueTask<bool> Expire(string cacheKey, string? key, TimeSpan? expiration, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set an expiration on a fully‐qualified Redis key. Returns true if the expiration was set successfully.
+    /// </summary>
+    /// <param name="redisKey">The fully qualified Redis key (e.g. “cacheKey:subKey”).</param>
+    /// <param name="expiration">The TimeSpan after which the key should expire.</param>
+    /// <param name="useQueue">Whether to enqueue this operation in the background queue.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    ValueTask<bool> Expire(string redisKey, TimeSpan? expiration, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the remaining TTL (time to live) for a key, or null if it does not exist or has no expiration.
+    /// </summary>
+    /// <param name="cacheKey">The base cache key (without any sub‐key).</param>
+    /// <param name="key">An optional sub‐key to append to the cacheKey.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    ValueTask<TimeSpan?> GetTimeToLive(string cacheKey, string? key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the remaining TTL (time to live) for a fully‐qualified Redis key, or null if it does not exist or has no expiration.
+    /// </summary>
+    /// <param name="redisKey">The fully qualified Redis key (e.g. “cacheKey:subKey”).</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    ValueTask<TimeSpan?> GetTimeToLive(string redisKey, CancellationToken cancellationToken = default);
 }
