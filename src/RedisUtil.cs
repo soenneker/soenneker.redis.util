@@ -92,7 +92,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            string? value = await database.StringGetAsync(redisKey).NoSync();
+            string? value = await database.StringGetAsync(redisKey).WaitAsync(cancellationToken).NoSync();
 
             if (!_log) return value;
 
@@ -121,7 +121,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey).NoSync();
+            Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey).WaitAsync(cancellationToken).NoSync();
 
             if (!_log) return lease;
 
@@ -148,7 +148,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            string? value = await database.HashGetAsync(redisKey, field).NoSync();
+            string? value = await database.HashGetAsync(redisKey, field).WaitAsync(cancellationToken).NoSync();
 
             if (!_log) return value;
 
@@ -240,7 +240,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            await database.StringSetAsync(redisKey, redisValue, expiration).NoSync();
+            _ = await database.StringSetAsync(redisKey, redisValue, expiration).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
             {
@@ -279,7 +279,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            await database.HashSetAsync(redisKey, field, redisValue).NoSync();
+            await database.HashSetAsync(redisKey, field, redisValue).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Set HASH key: {key} \r\n {redisValue}", redisKey, redisValue);
@@ -315,7 +315,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            await database.KeyDeleteAsync(redisKey).NoSync();
+            _ = await database.KeyDeleteAsync(redisKey).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Removed key: {key}", redisKey);
@@ -358,7 +358,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            long newValue = await database.StringDecrementAsync(redisKey, delta).NoSync();
+            long newValue = await database.StringDecrementAsync(redisKey, delta).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Decremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
@@ -400,7 +400,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            long newValue = await database.StringIncrementAsync(redisKey, delta).NoSync();
+            long newValue = await database.StringIncrementAsync(redisKey, delta).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Incremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
@@ -448,7 +448,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            bool result = await database.KeyExpireAsync(redisKey, expiration).NoSync();
+            bool result = await database.KeyExpireAsync(redisKey, expiration).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
             {
@@ -482,7 +482,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             IDatabase database = (await _redisClient.Get(cancellationToken).NoSync()).GetDatabase();
-            TimeSpan? ttl = await database.KeyTimeToLiveAsync(redisKey).NoSync();
+            TimeSpan? ttl = await database.KeyTimeToLiveAsync(redisKey).WaitAsync(cancellationToken).NoSync();
 
             if (_log)
             {
