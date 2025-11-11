@@ -40,7 +40,7 @@
         <PackageReference Include="Humanizer.Core" Version="2.14.1" />
         <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2075" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2201" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2364" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2365" />
         <PackageReference Include="Soenneker.Utils.Method" Version="4.0.441" />
         <PackageReference Include="Soenneker.Utils.PooledStringBuilders" Version="4.0.6" />
     </ItemGroup>
