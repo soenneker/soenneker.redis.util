@@ -264,7 +264,8 @@ public sealed class RedisUtil : IRedisUtil
         {
             IDatabase database = (await _redisClient.Get(cancellationToken)
                 .NoSync()).GetDatabase();
-            _ = await database.StringSetAsync(redisKey, redisValue, expiration)
+
+            _ = await database.StringSetAsync(redisKey, redisValue, expiration, false)
                 .WaitAsync(cancellationToken)
                 .NoSync();
 
