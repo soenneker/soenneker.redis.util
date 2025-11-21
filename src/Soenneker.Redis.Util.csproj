@@ -38,7 +38,7 @@
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
 
         <PackageReference Include="Humanizer.Core" Version="3.0.1" />
-        <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2077" />
+        <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2081" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2208" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2367" />
         <PackageReference Include="Soenneker.Utils.Method" Version="4.0.442" />
