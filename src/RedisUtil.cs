@@ -2,17 +2,16 @@
 using Microsoft.Extensions.Logging;
 using Soenneker.Enums.JsonOptions;
 using Soenneker.Extensions.String;
-using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Redis.Client.Abstract;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Utils.BackgroundQueue.Abstract;
 using Soenneker.Utils.Json;
-using Soenneker.Utils.Method;
 using Soenneker.Utils.PooledStringBuilders;
 using StackExchange.Redis;
 using System;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -37,6 +36,37 @@ public sealed class RedisUtil : IRedisUtil
         _backgroundQueue = backgroundQueue;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ValueTask<IDatabase> GetDb(CancellationToken ct)
+    {
+        ValueTask<ConnectionMultiplexer> vt = _redisClient.Get(ct);
+
+        if (vt.IsCompletedSuccessfully)
+            return new ValueTask<IDatabase>(vt.Result.GetDatabase());
+
+        return AwaitSlow(vt);
+
+        static async ValueTask<IDatabase> AwaitSlow(ValueTask<ConnectionMultiplexer> vt) => (await vt.NoSync()).GetDatabase();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ValueTask<T> Await<T>(Task<T> task, CancellationToken ct)
+    {
+        // Avoid WaitAsync overhead when token is default / not cancelable
+        if (!ct.CanBeCanceled)
+            return new ValueTask<T>(task);
+
+        return new ValueTask<T>(task.WaitAsync(ct));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void LogSkipKeyEmpty([CallerMemberName] string? method = null) =>
+        _logger.LogError(">> REDIS: Skipping {method} because the key is null or empty", method);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void LogSkipValueEmpty([CallerMemberName] string? method = null) =>
+        _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", method);
+
     public ValueTask<T?> Get<T>(string cacheKey, string? key, CancellationToken cancellationToken = default) where T : class
     {
         string redisKey = BuildKey(cacheKey, key);
@@ -45,7 +75,7 @@ public sealed class RedisUtil : IRedisUtil
 
     public async ValueTask<T?> Get<T>(string redisKey, CancellationToken cancellationToken = default) where T : class
     {
-        // Fast path: read the raw bytes via lease to avoid string alloc + UTF8 re-encode
+        // Fast path: read raw bytes via lease to avoid string alloc + UTF8 re-encode
         using Lease<byte>? lease = await GetLease(redisKey, cancellationToken)
             .NoSync();
 
@@ -92,24 +122,29 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return null;
         }
 
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            string? value = await database.StringGetAsync(redisKey)
-                                          .WaitAsync(cancellationToken)
-                                          .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
 
-            if (!_log)
-                return value;
+            // Get as RedisValue first; avoid extra work on miss
+            RedisValue rv = await Await(db.StringGetAsync(redisKey), cancellationToken)
+                .NoSync();
 
-            if (value == null)
-                _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
-            else
+            if (rv.IsNull)
+            {
+                if (_log)
+                    _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
+                return null;
+            }
+
+            string? value = (string?)rv;
+
+            if (_log)
                 _logger.LogDebug(">> REDIS: Retrieved key: {key} \r\n {result}", redisKey, value);
 
             return value;
@@ -125,22 +160,19 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return null;
         }
 
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            Lease<byte>? lease = await database.StringGetLeaseAsync(redisKey)
-                                               .WaitAsync(cancellationToken)
-                                               .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
 
-            if (!_log)
-                return lease;
+            Lease<byte>? lease = await Await(db.StringGetLeaseAsync(redisKey), cancellationToken)
+                .NoSync();
 
-            if (lease == null)
+            if (_log && lease is null)
                 _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
 
             return lease;
@@ -156,24 +188,28 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return null;
         }
 
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            string? value = await database.HashGetAsync(redisKey, field)
-                                          .WaitAsync(cancellationToken)
-                                          .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
 
-            if (!_log)
-                return value;
+            RedisValue rv = await Await(db.HashGetAsync(redisKey, field), cancellationToken)
+                .NoSync();
 
-            if (value == null)
-                _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
-            else
+            if (rv.IsNull)
+            {
+                if (_log)
+                    _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
+                return null;
+            }
+
+            string? value = (string?)rv;
+
+            if (_log)
                 _logger.LogDebug(">> REDIS: Retrieved key: {key} \r\n {result}", redisKey, value);
 
             return value;
@@ -197,13 +233,13 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the key is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return;
         }
 
-        RedisValue? redisValue = SerializeIntoValue(redisKey, value);
+        RedisValue? redisValue = SerializeIntoValue((RedisKey)redisKey, value);
 
-        if (redisValue == null)
+        if (redisValue is null)
             return;
 
         if (useQueue)
@@ -214,7 +250,7 @@ public sealed class RedisUtil : IRedisUtil
             return;
         }
 
-        await InternalRedisValueSet(redisKey, redisValue.Value, expiration, cancellationToken)
+        await InternalRedisValueSet((RedisKey)redisKey, redisValue.Value, expiration, cancellationToken)
             .NoSync();
     }
 
@@ -229,13 +265,13 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the key is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return ValueTask.CompletedTask;
         }
 
         if (redisValue.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", MethodUtil.Get());
+            LogSkipValueEmpty();
             return ValueTask.CompletedTask;
         }
 
@@ -245,7 +281,7 @@ public sealed class RedisUtil : IRedisUtil
                 static (s, ct) => s.util.InternalRedisValueSet(s.key, s.value, s.exp, ct), cancellationToken);
         }
 
-        return InternalRedisValueSet(redisKey, redisValue, expiration, cancellationToken);
+        return InternalRedisValueSet((RedisKey)redisKey, (RedisValue)redisValue, expiration, cancellationToken);
     }
 
     private RedisValue? SerializeIntoValue<T>(RedisKey redisKey, T value)
@@ -253,9 +289,7 @@ public sealed class RedisUtil : IRedisUtil
         try
         {
             byte[] utf8 = JsonUtil.SerializeToUtf8Bytes(value!, _jsonOptionType);
-
             RedisValue redisValue = utf8;
-
             return redisValue;
         }
         catch (Exception e)
@@ -269,17 +303,15 @@ public sealed class RedisUtil : IRedisUtil
     {
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
 
-            _ = await database.StringSetAsync(redisKey, redisValue, expiration, false)
-                              .WaitAsync(cancellationToken)
-                              .NoSync();
+            _ = await Await(db.StringSetAsync(redisKey, redisValue, expiration, false), cancellationToken)
+                .NoSync();
 
             if (_log)
             {
-                string expirationStr = expiration == null ? "never" : expiration.Value.ToString("c"); // invariant constant format
-
+                string expirationStr = expiration == null ? "never" : expiration.Value.ToString("c");
                 _logger.LogDebug(">> REDIS: Set key: {key} (expires in: {expiration}) \r\n {redisValue}", redisKey, expirationStr, redisValue);
             }
         }
@@ -293,13 +325,13 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the key is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return ValueTask.CompletedTask;
         }
 
         if (redisValue.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", MethodUtil.Get());
+            LogSkipValueEmpty();
             return ValueTask.CompletedTask;
         }
 
@@ -312,16 +344,15 @@ public sealed class RedisUtil : IRedisUtil
         return InternalHashSet(redisKey, field, redisValue, cancellationToken);
     }
 
-
     private async ValueTask InternalHashSet(string redisKey, string field, string redisValue, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            await database.HashSetAsync(redisKey, field, redisValue)
-                          .WaitAsync(cancellationToken)
-                          .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            await Await(db.HashSetAsync(redisKey, field, redisValue), cancellationToken)
+                .NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Set HASH key: {key} \r\n {redisValue}", redisKey, redisValue);
@@ -342,7 +373,7 @@ public sealed class RedisUtil : IRedisUtil
     {
         if (redisKey.IsNullOrEmpty())
         {
-            _logger.LogError(">> REDIS: Skipping {method} because the key is null or empty", MethodUtil.Get());
+            LogSkipKeyEmpty();
             return ValueTask.CompletedTask;
         }
 
@@ -358,11 +389,11 @@ public sealed class RedisUtil : IRedisUtil
     {
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            _ = await database.KeyDeleteAsync(redisKey)
-                              .WaitAsync(cancellationToken)
-                              .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            _ = await Await(db.KeyDeleteAsync(redisKey), cancellationToken)
+                .NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Removed key: {key}", redisKey);
@@ -389,12 +420,9 @@ public sealed class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            // Fire-and-forget; we don't return the result when queued
-            await _backgroundQueue.QueueValueTask((util: this, key: redisKey, delta), static async (s, ct) =>
-                                  {
-                                      _ = await s.util.InternalStringDecrement(s.key, s.delta, ct)
-                                                 .ConfigureAwait(false);
-                                  }, cancellationToken)
+            // fire-and-forget; queued path does not return result
+            await _backgroundQueue.QueueValueTask((util: this, key: redisKey, delta),
+                                      static (s, ct) => s.util.InternalStringDecrementNoThrow(s.key, s.delta, ct), cancellationToken)
                                   .NoSync();
 
             return null;
@@ -405,18 +433,39 @@ public sealed class RedisUtil : IRedisUtil
     }
 
     /// <summary>
-    /// Helper that actually issues StringDecrementAsync(redisKey, delta) 
-    /// and logs the result. Returns the new long value (or null on error).
+    /// Queued path: no returned result; no async state machine inside delegate.
+    /// </summary>
+    private async ValueTask InternalStringDecrementNoThrow(string redisKey, long delta, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            long newValue = await Await(db.StringDecrementAsync(redisKey, delta), cancellationToken)
+                .NoSync();
+
+            if (_log)
+                _logger.LogDebug(">> REDIS: Decremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error decrementing key: {key} by {delta}", redisKey, delta);
+        }
+    }
+
+    /// <summary>
+    /// Direct path: returns new long value (or null on error).
     /// </summary>
     private async ValueTask<long?> InternalStringDecrement(string redisKey, long delta, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            long newValue = await database.StringDecrementAsync(redisKey, delta)
-                                          .WaitAsync(cancellationToken)
-                                          .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            long newValue = await Await(db.StringDecrementAsync(redisKey, delta), cancellationToken)
+                .NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Decremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
@@ -446,11 +495,8 @@ public sealed class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            await _backgroundQueue.QueueValueTask((util: this, key: redisKey, delta), static async (s, ct) =>
-                                  {
-                                      _ = await s.util.InternalStringIncrement(s.key, s.delta, ct)
-                                                 .ConfigureAwait(false);
-                                  }, cancellationToken)
+            await _backgroundQueue.QueueValueTask((util: this, key: redisKey, delta),
+                                      static (s, ct) => s.util.InternalStringIncrementNoThrow(s.key, s.delta, ct), cancellationToken)
                                   .NoSync();
 
             return null;
@@ -460,16 +506,34 @@ public sealed class RedisUtil : IRedisUtil
             .NoSync();
     }
 
+    private async ValueTask InternalStringIncrementNoThrow(string redisKey, long delta, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            long newValue = await Await(db.StringIncrementAsync(redisKey, delta), cancellationToken)
+                .NoSync();
+
+            if (_log)
+                _logger.LogDebug(">> REDIS: Incremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error incrementing key: {key} by {delta}", redisKey, delta);
+        }
+    }
+
     private async ValueTask<long?> InternalStringIncrement(string redisKey, long delta, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
 
-            long newValue = await database.StringIncrementAsync(redisKey, delta)
-                                          .WaitAsync(cancellationToken)
-                                          .NoSync();
+            long newValue = await Await(db.StringIncrementAsync(redisKey, delta), cancellationToken)
+                .NoSync();
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Incremented key: {key} by {delta}. New value: {newValue}", redisKey, delta, newValue);
@@ -505,11 +569,8 @@ public sealed class RedisUtil : IRedisUtil
 
         if (useQueue)
         {
-            await _backgroundQueue.QueueValueTask((util: this, key: redisKey, exp: expiration), static async (s, ct) =>
-                                  {
-                                      _ = await s.util.InternalKeyExpire(s.key, s.exp, ct)
-                                                 .ConfigureAwait(false);
-                                  }, cancellationToken)
+            await _backgroundQueue.QueueValueTask((util: this, key: redisKey, exp: expiration),
+                                      static (s, ct) => s.util.InternalKeyExpireNoThrow(s.key, s.exp, ct), cancellationToken)
                                   .NoSync();
 
             return false;
@@ -519,19 +580,41 @@ public sealed class RedisUtil : IRedisUtil
             .NoSync();
     }
 
+    private async ValueTask InternalKeyExpireNoThrow(string redisKey, TimeSpan? expiration, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            bool result = await Await(db.KeyExpireAsync(redisKey, expiration), cancellationToken)
+                .NoSync();
+
+            if (_log)
+            {
+                string expirationStr = expiration!.Value.ToString("c");
+                _logger.LogDebug(">> REDIS: Set expiration on key: {key} (expires in: {timespan}) Result: {result}", redisKey, expirationStr, result);
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error setting expiration on key: {key}", redisKey);
+        }
+    }
+
     private async ValueTask<bool> InternalKeyExpire(string redisKey, TimeSpan? expiration, CancellationToken cancellationToken)
     {
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            bool result = await database.KeyExpireAsync(redisKey, expiration)
-                                        .WaitAsync(cancellationToken)
-                                        .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            bool result = await Await(db.KeyExpireAsync(redisKey, expiration), cancellationToken)
+                .NoSync();
 
             if (_log)
             {
-                var expirationStr = expiration!.Value.ToString("c"); // constant format
+                string expirationStr = expiration!.Value.ToString("c");
                 _logger.LogDebug(">> REDIS: Set expiration on key: {key} (expires in: {timespan}) Result: {result}", redisKey, expirationStr, result);
             }
 
@@ -560,20 +643,18 @@ public sealed class RedisUtil : IRedisUtil
 
         try
         {
-            IDatabase database = (await _redisClient.Get(cancellationToken)
-                                                    .NoSync()).GetDatabase();
-            TimeSpan? ttl = await database.KeyTimeToLiveAsync(redisKey)
-                                          .WaitAsync(cancellationToken)
-                                          .NoSync();
+            IDatabase db = await GetDb(cancellationToken)
+                .NoSync();
+
+            TimeSpan? ttl = await Await(db.KeyTimeToLiveAsync(redisKey), cancellationToken)
+                .NoSync();
 
             if (_log)
             {
                 if (ttl == null)
                     _logger.LogDebug(">> REDIS: Key {key} does not exist or has no expiration", redisKey);
                 else
-                {
                     _logger.LogDebug(">> REDIS: TTL for key: {key} is {timespan}", redisKey, ttl.Value.ToString("c"));
-                }
             }
 
             return ttl;
@@ -586,7 +667,7 @@ public sealed class RedisUtil : IRedisUtil
     }
 
     /// <summary>
-    /// Escapes the keys for safety
+    /// Escapes the keys for safety.
     /// </summary>
     [Pure]
     public static string BuildKey(string cacheKey, string? key)
@@ -604,6 +685,7 @@ public sealed class RedisUtil : IRedisUtil
 
     /// <summary>
     /// Escapes the keys for safety. Optimized for speed.
+    /// NOTE: params callsites allocate an array; for hot paths consider adding fixed-arity overloads.
     /// </summary>
     [Pure]
     public static string BuildKey(string cacheKey, params string?[] keys)
@@ -611,9 +693,8 @@ public sealed class RedisUtil : IRedisUtil
         if (keys.Length == 0)
             return cacheKey;
 
-        // Pre-calc final length without re-escapes
         int total = cacheKey.Length;
-        // Cache escaped variants so we don't call ToEscaped() twice
+
         var escaped = new string?[keys.Length];
 
         for (var i = 0; i < keys.Length; i++)
@@ -621,9 +702,10 @@ public sealed class RedisUtil : IRedisUtil
             string? k = keys[i];
             if (k is null)
                 continue;
+
             string e = k.ToEscaped();
             escaped[i] = e;
-            total += 1 + e.Length; // ':' + payload
+            total += 1 + e.Length;
         }
 
         using var psb = new PooledStringBuilder(total);
@@ -634,6 +716,7 @@ public sealed class RedisUtil : IRedisUtil
             string? e = escaped[i];
             if (e is null)
                 continue;
+
             psb.Append(':');
             psb.Append(e);
         }
