@@ -24,6 +24,18 @@ jobs:
   publish-package:
     runs-on: ubuntu-latest
 
+    services:
+     redis: 
+       image: redis
+       # Set health checks to wait until redis has started
+       options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+       ports:
+         - 6379:6379
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -57,7 +69,6 @@ jobs:
 
       - name: Test
         run: dotnet test test/Soenneker.Redis.Util.Tests/Soenneker.Redis.Util.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
-
 
       - name: Restore library
         run: dotnet restore src/Soenneker.Redis.Util/Soenneker.Redis.Util.csproj --verbosity minimal
