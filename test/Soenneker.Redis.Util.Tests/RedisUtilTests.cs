@@ -26,22 +26,20 @@ public class RedisUtilTests : FixturedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value);
+        await _util.Set("test", key, value, cancellationToken: CancellationToken);
 
         Logger.LogInformation("Testing");
 
-        string? rtnValue = await _util.GetString("test", key);
+        string? rtnValue = await _util.GetString("test", key, CancellationToken);
         rtnValue.Should().Be(value);
-
-        await Task.Delay(1000);
     }
 
     [Fact]
     public async Task Set_without_key_should_resolve_with_get()
     {
-        await _util.Set("test", null, "1");
+        await _util.Set("test", null, "1", cancellationToken: CancellationToken);
 
-        string? rtnValue = await _util.GetString("test");
+        string? rtnValue = await _util.GetString("test", CancellationToken);
 
         rtnValue.Should().Be("1");
     }
@@ -50,9 +48,9 @@ public class RedisUtilTests : FixturedUnitTest
     public async Task Set_json_item_should_exist()
     {
         var doc = AutoFaker.Generate<TestDocument>();
-        await _util.Set("test", doc.Id, doc);
+        await _util.Set("test", doc.Id, doc, cancellationToken: CancellationToken);
 
-        var result = await _util.Get<TestDocument>("test", doc.Id);
+        var result = await _util.Get<TestDocument>("test", doc.Id, CancellationToken);
         result.Should().NotBeNull();
         result!.CreatedAt.Should().Be(doc.CreatedAt);
     }
@@ -63,11 +61,11 @@ public class RedisUtilTests : FixturedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value);
+        await _util.Set("test", key, value, cancellationToken: CancellationToken);
 
-        await _util.Remove("test", key);
+        await _util.Remove("test", key, cancellationToken: CancellationToken);
 
-        string? rtnValue = await _util.GetString("test", key);
+        string? rtnValue = await _util.GetString("test", key, CancellationToken);
         rtnValue.Should().BeNull();
     }
 
@@ -95,7 +93,7 @@ public class RedisUtilTests : FixturedUnitTest
     [Fact]
     public void BuildKey_with_malicious_key_should_produce_expected()
     {
-        var key = " ; ' test";
+        const string key = " ; ' test";
         string result = RedisUtil.BuildKey("test", key);
 
         string? escaped = key.ToEscaped();
