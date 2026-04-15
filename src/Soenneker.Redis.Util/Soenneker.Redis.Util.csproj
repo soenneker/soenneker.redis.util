@@ -47,7 +47,7 @@
     <ItemGroup>
         <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2200" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2359" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2512" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2513" />
         <PackageReference Include="Soenneker.Utils.Method" Version="4.0.452" />
         <PackageReference Include="Soenneker.Utils.PooledStringBuilders" Version="4.0.21" />
     </ItemGroup>
