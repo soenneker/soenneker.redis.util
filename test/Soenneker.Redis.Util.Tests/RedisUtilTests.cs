@@ -4,23 +4,22 @@ using Microsoft.Extensions.Logging;
 using Soenneker.Extensions.String;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Redis.Util.Tests.Dtos;
-using Soenneker.Tests.FixturedUnit;
-using Xunit;
+using Soenneker.Tests.HostedUnit;
 
 
 namespace Soenneker.Redis.Util.Tests;
 
-[Collection("Collection")]
-public class RedisUtilTests : FixturedUnitTest
+[ClassDataSource<Host>(Shared = SharedType.PerTestSession)]
+public class RedisUtilTests : HostedUnitTest
 {
     private readonly IRedisUtil _util;
 
-    public RedisUtilTests(Fixture fixture, ITestOutputHelper outputHelper) : base(fixture, outputHelper)
+    public RedisUtilTests(Host host) : base(host)
     {
         _util = Resolve<IRedisUtil>();
     }
 
-    [Fact]
+    [Test]
     public async Task Set_item_should_exist()
     {
         string key = Faker.Random.AlphaNumeric(20);
@@ -34,7 +33,7 @@ public class RedisUtilTests : FixturedUnitTest
         rtnValue.Should().Be(value);
     }
 
-    [Fact]
+    [Test]
     public async Task Set_without_key_should_resolve_with_get()
     {
         await _util.Set("test", null, "1", cancellationToken: CancellationToken);
@@ -44,7 +43,7 @@ public class RedisUtilTests : FixturedUnitTest
         rtnValue.Should().Be("1");
     }
 
-    [Fact]
+    [Test]
     public async Task Set_json_item_should_exist()
     {
         var doc = AutoFaker.Generate<TestDocument>();
@@ -55,7 +54,7 @@ public class RedisUtilTests : FixturedUnitTest
         result!.CreatedAt.Should().Be(doc.CreatedAt);
     }
 
-    [Fact]
+    [Test]
     public async Task Removed_cache_item_should_not_exist()
     {
         string key = Faker.Random.AlphaNumeric(20);
@@ -69,7 +68,7 @@ public class RedisUtilTests : FixturedUnitTest
         rtnValue.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void BuildKey_should_produce_expected()
     {
         string? key = Faker.Random.AlphaNumeric(25);
@@ -79,7 +78,7 @@ public class RedisUtilTests : FixturedUnitTest
         result.Should().Be($"test:{key}");
     }
 
-    [Fact]
+    [Test]
     public void BuildKey_multiple_should_produce_expected()
     {
         string? key1 = Faker.Random.AlphaNumeric(25);
@@ -90,7 +89,7 @@ public class RedisUtilTests : FixturedUnitTest
         result.Should().Be($"test:{key1}:{key2}");
     }
 
-    [Fact]
+    [Test]
     public void BuildKey_with_malicious_key_should_produce_expected()
     {
         const string key = " ; ' test";
@@ -101,7 +100,7 @@ public class RedisUtilTests : FixturedUnitTest
         result.Should().Be($"test:{escaped}");
     }
 
-    [Fact]
+    [Test]
     public void Get_key_with_multiple_should_produce_expected()
     {
         string? key1 = Faker.Random.AlphaNumeric(25);
