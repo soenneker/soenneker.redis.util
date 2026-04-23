@@ -25,20 +25,20 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, cancellationToken: CancellationToken);
+        await _util.Set("test", key, value, cancellationToken: System.Threading.CancellationToken.None);
 
         Logger.LogInformation("Testing");
 
-        string? rtnValue = await _util.GetString("test", key, CancellationToken);
+        string? rtnValue = await _util.GetString("test", key, System.Threading.CancellationToken.None);
         rtnValue.Should().Be(value);
     }
 
     [Test]
     public async Task Set_without_key_should_resolve_with_get()
     {
-        await _util.Set("test", null, "1", cancellationToken: CancellationToken);
+        await _util.Set("test", null, "1", cancellationToken: System.Threading.CancellationToken.None);
 
-        string? rtnValue = await _util.GetString("test", CancellationToken);
+        string? rtnValue = await _util.GetString("test", System.Threading.CancellationToken.None);
 
         rtnValue.Should().Be("1");
     }
@@ -47,9 +47,9 @@ public class RedisUtilTests : HostedUnitTest
     public async Task Set_json_item_should_exist()
     {
         var doc = AutoFaker.Generate<TestDocument>();
-        await _util.Set("test", doc.Id, doc, cancellationToken: CancellationToken);
+        await _util.Set("test", doc.Id, doc, cancellationToken: System.Threading.CancellationToken.None);
 
-        var result = await _util.Get<TestDocument>("test", doc.Id, CancellationToken);
+        var result = await _util.Get<TestDocument>("test", doc.Id, System.Threading.CancellationToken.None);
         result.Should().NotBeNull();
         result!.CreatedAt.Should().Be(doc.CreatedAt);
     }
@@ -60,11 +60,11 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, cancellationToken: CancellationToken);
+        await _util.Set("test", key, value, cancellationToken: System.Threading.CancellationToken.None);
 
-        await _util.Remove("test", key, cancellationToken: CancellationToken);
+        await _util.Remove("test", key, cancellationToken: System.Threading.CancellationToken.None);
 
-        string? rtnValue = await _util.GetString("test", key, CancellationToken);
+        string? rtnValue = await _util.GetString("test", key, System.Threading.CancellationToken.None);
         rtnValue.Should().BeNull();
     }
 
@@ -111,3 +111,4 @@ public class RedisUtilTests : HostedUnitTest
         result.Should().Be($"test:{key1}:{key2}");
     }
 }
+
