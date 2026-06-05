@@ -23,6 +23,11 @@ public static class RedisUtilRegistrar
         return services;
     }
 
+    /// <summary>
+    /// Adds redis util as scoped.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The result of the operation.</returns>
     public static IServiceCollection AddRedisUtilAsScoped(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()

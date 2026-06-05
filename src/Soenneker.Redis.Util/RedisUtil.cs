@@ -184,6 +184,13 @@ public sealed class RedisUtil : IRedisUtil
         }
     }
 
+    /// <summary>
+    /// Gets hash.
+    /// </summary>
+    /// <param name="redisKey">The redis key.</param>
+    /// <param name="field">The field.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task containing the result of the operation.</returns>
     public async ValueTask<string?> GetHash(string redisKey, string field, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
