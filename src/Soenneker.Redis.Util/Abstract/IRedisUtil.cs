@@ -184,6 +184,58 @@ public interface IRedisUtil
         where T : class;
 
     /// <summary>
+    /// Stores an object of type <typeparamref name="T"/> under a Redis key composed of a base <paramref name="cacheKey"/>
+    /// and an optional <paramref name="key"/> segment only when the key does not already exist. The object is serialized to JSON before storage.
+    /// </summary>
+    /// <typeparam name="T">
+    /// The type of the object to store. Must be a reference type.
+    /// </typeparam>
+    /// <param name="cacheKey">
+    /// The base key under which to store the object.
+    /// </param>
+    /// <param name="key">
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
+    /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
+    /// </param>
+    /// <param name="value">
+    /// The object to serialize and store.
+    /// </param>
+    /// <param name="expiration">
+    /// An optional <see cref="TimeSpan"/> after which the key expires.
+    /// If <c>null</c>, the key never expires.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    ValueTask<bool> SetIfNotExists<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+        where T : class;
+
+    /// <summary>
+    /// Stores an object of type <typeparamref name="T"/> under the specified Redis key only when the key does not already exist.
+    /// The object is serialized to JSON before storage.
+    /// </summary>
+    /// <typeparam name="T">
+    /// The type of the object to store. Must be a reference type.
+    /// </typeparam>
+    /// <param name="redisKey">
+    /// The full Redis key under which to store the object.
+    /// </param>
+    /// <param name="value">
+    /// The object to serialize and store.
+    /// </param>
+    /// <param name="expiration">
+    /// An optional <see cref="TimeSpan"/> after which the key expires.
+    /// If <c>null</c>, the key never expires.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    ValueTask<bool> SetIfNotExists<T>(string redisKey, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+        where T : class;
+
+    /// <summary>
     /// Stores a raw string under a Redis key composed of a base <paramref name="cacheKey"/> 
     /// and an optional <paramref name="key"/> segment.
     /// </summary>
@@ -232,6 +284,50 @@ public interface IRedisUtil
     /// A token to observe while waiting for the asynchronous operation to complete.
     /// </param>
     ValueTask Set(string redisKey, string redisValue, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores a raw string under a Redis key composed of a base <paramref name="cacheKey"/>
+    /// and an optional <paramref name="key"/> segment only when the key does not already exist.
+    /// </summary>
+    /// <param name="cacheKey">
+    /// The base key under which to store the string.
+    /// </param>
+    /// <param name="key">
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
+    /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
+    /// </param>
+    /// <param name="value">
+    /// The string to store.
+    /// </param>
+    /// <param name="expiration">
+    /// An optional <see cref="TimeSpan"/> after which the key expires.
+    /// If <c>null</c>, the key never expires.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    ValueTask<bool> SetIfNotExists(string cacheKey, string? key, string value, TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores a raw string under the specified Redis key only when the key does not already exist.
+    /// </summary>
+    /// <param name="redisKey">
+    /// The full Redis key under which to store the string.
+    /// </param>
+    /// <param name="redisValue">
+    /// The string to store.
+    /// </param>
+    /// <param name="expiration">
+    /// An optional <see cref="TimeSpan"/> after which the key expires.
+    /// If <c>null</c>, the key never expires.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    ValueTask<bool> SetIfNotExists(string redisKey, string redisValue, TimeSpan? expiration = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stores a single field in a Redis hash under the specified <paramref name="redisKey"/>.
