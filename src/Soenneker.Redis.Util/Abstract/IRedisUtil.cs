@@ -385,6 +385,26 @@ public interface IRedisUtil
     ValueTask Remove(string redisKey, bool useQueue = false, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Removes a key composed of a base <paramref name="cacheKey"/> and an optional <paramref name="key"/> segment only when its value matches
+    /// <paramref name="expectedValue"/>.
+    /// </summary>
+    /// <param name="cacheKey">The base key to remove.</param>
+    /// <param name="key">An optional additional segment to append to <paramref name="cacheKey"/>.</param>
+    /// <param name="expectedValue">The value that must currently be stored for the key to be removed.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for the asynchronous operation to complete.</param>
+    /// <returns><c>true</c> if the value matched and the key was removed; otherwise <c>false</c>.</returns>
+    ValueTask<bool> RemoveIfEqual(string cacheKey, string? key, string expectedValue, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the specified Redis key only when its value matches <paramref name="expectedValue"/>.
+    /// </summary>
+    /// <param name="redisKey">The full key to remove.</param>
+    /// <param name="expectedValue">The value that must currently be stored for the key to be removed.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for the asynchronous operation to complete.</param>
+    /// <returns><c>true</c> if the value matched and the key was removed; otherwise <c>false</c>.</returns>
+    ValueTask<bool> RemoveIfEqual(string redisKey, string expectedValue, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Decrements the numeric value stored at a Redis key composed of a base <paramref name="cacheKey"/> and an optional <paramref name="key"/> segment.
     /// If the key does not exist, it is initialized to 0 before decrementing.
     /// </summary>

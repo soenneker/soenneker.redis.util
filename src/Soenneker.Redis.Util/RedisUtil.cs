@@ -488,6 +488,58 @@ public sealed class RedisUtil : IRedisUtil
         }
     }
 
+    public ValueTask<bool> RemoveIfEqual(string cacheKey, string? key, string expectedValue, CancellationToken cancellationToken = default)
+    {
+        string redisKey = BuildKey(cacheKey, key);
+        return RemoveIfEqual(redisKey, expectedValue, cancellationToken);
+    }
+
+    public ValueTask<bool> RemoveIfEqual(string redisKey, string expectedValue, CancellationToken cancellationToken = default)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            LogSkipKeyEmpty();
+            return new ValueTask<bool>(false);
+        }
+
+        if (expectedValue.IsNullOrEmpty())
+        {
+            LogSkipValueEmpty();
+            return new ValueTask<bool>(false);
+        }
+
+        return InternalKeyDeleteIfEqual((RedisKey) redisKey, (RedisValue) expectedValue, cancellationToken);
+    }
+
+    private async ValueTask<bool> InternalKeyDeleteIfEqual(RedisKey redisKey, RedisValue expectedValue, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase db = await GetDb(cancellationToken).NoSync();
+            ITransaction transaction = db.CreateTransaction();
+
+            transaction.AddCondition(Condition.StringEqual(redisKey, expectedValue));
+            Task<bool> deleteTask = transaction.KeyDeleteAsync(redisKey);
+
+            bool executed = await Await(transaction.ExecuteAsync(), cancellationToken).NoSync();
+
+            if (!executed)
+                return false;
+
+            bool removed = await Await(deleteTask, cancellationToken).NoSync();
+
+            if (_log)
+                _logger.LogDebug(">> REDIS: Removed key if equal: {key}. Result: {result}", redisKey, removed);
+
+            return removed;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error removing key if equal: {key}", redisKey);
+            return false;
+        }
+    }
+
     public ValueTask<long?> Decrement(string cacheKey, string? key, long delta = 1, bool useQueue = false,
         CancellationToken cancellationToken = default)
     {

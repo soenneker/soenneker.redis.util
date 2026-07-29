@@ -69,6 +69,38 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
+    public async Task RemoveIfEqual_should_remove_matching_value()
+    {
+        string key = Faker.Random.AlphaNumeric(20);
+        string value = Faker.Random.AlphaNumeric(20);
+
+        await _util.Set("test", key, value, cancellationToken: System.Threading.CancellationToken.None);
+
+        bool removed = await _util.RemoveIfEqual("test", key, value, System.Threading.CancellationToken.None);
+        string? result = await _util.GetString("test", key, System.Threading.CancellationToken.None);
+
+        removed.Should().BeTrue();
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public async Task RemoveIfEqual_should_preserve_nonmatching_value()
+    {
+        string key = Faker.Random.AlphaNumeric(20);
+        string value = Faker.Random.AlphaNumeric(20);
+
+        await _util.Set("test", key, value, cancellationToken: System.Threading.CancellationToken.None);
+
+        bool removed = await _util.RemoveIfEqual("test", key, "different", System.Threading.CancellationToken.None);
+        string? result = await _util.GetString("test", key, System.Threading.CancellationToken.None);
+
+        removed.Should().BeFalse();
+        result.Should().Be(value);
+
+        await _util.Remove("test", key, cancellationToken: System.Threading.CancellationToken.None);
+    }
+
+    [Test]
     public void BuildKey_should_produce_expected()
     {
         string? key = Faker.Random.AlphaNumeric(25);
