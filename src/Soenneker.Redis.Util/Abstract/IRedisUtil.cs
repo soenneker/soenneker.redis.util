@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using StackExchange.Redis;
 
 namespace Soenneker.Redis.Util.Abstract;
 
@@ -84,6 +85,9 @@ public interface IRedisUtil
     /// </list>
     /// </returns>
     ValueTask<T?> GetHash<T>(string redisKey, string field, CancellationToken cancellationToken = default) where T : class;
+
+    /// <summary>Retrieves a raw string value from a Redis hash field.</summary>
+    ValueTask<string?> GetHash(string redisKey, string field, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a raw string value from a Redis key composed of a base <paramref name="cacheKey"/> 
@@ -580,4 +584,49 @@ public interface IRedisUtil
     /// <param name="redisKey">The fully qualified Redis key (e.g. “cacheKey:subKey”).</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     ValueTask<TimeSpan?> GetTimeToLive(string redisKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Gets the number of values in a Redis list.</summary>
+    ValueTask<long?> GetListLength(string redisKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Gets a value at <paramref name="index"/> in a Redis list.</summary>
+    ValueTask<string?> GetListValue(string redisKey, long index, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes and returns the first value in a Redis list.</summary>
+    ValueTask<string?> PopListLeft(string redisKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Pushes a value to the beginning of a Redis list and returns the resulting length.</summary>
+    ValueTask<long?> PushListLeft(string redisKey, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>Pushes a value to the end of a Redis list and returns the resulting length.</summary>
+    ValueTask<long?> PushListRight(string redisKey, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>Adds a value to a Redis set.</summary>
+    ValueTask<bool> AddSetValue(string redisKey, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a value from a Redis set.</summary>
+    ValueTask<bool> RemoveSetValue(string redisKey, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>Gets all values in a Redis set.</summary>
+    ValueTask<IReadOnlyList<string>?> GetSetValues(string redisKey, CancellationToken cancellationToken = default);
+
+    /// <summary>Gets values from a Redis sorted set whose scores are within the specified range.</summary>
+    ValueTask<IReadOnlyList<string>?> GetSortedSetValuesByScore(string redisKey, double minimumScore = double.NegativeInfinity,
+        double maximumScore = double.PositiveInfinity, long skip = 0, long take = -1, CancellationToken cancellationToken = default);
+
+    /// <summary>Gets the score of a value in a Redis sorted set.</summary>
+    ValueTask<double?> GetSortedSetScore(string redisKey, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>Adds or updates a value in a Redis sorted set.</summary>
+    ValueTask<bool> AddSortedSetValue(string redisKey, string value, double score, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a value from a Redis sorted set.</summary>
+    ValueTask<bool> RemoveSortedSetValue(string redisKey, string value, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a field from a Redis hash.</summary>
+    ValueTask<bool> RemoveHashField(string redisKey, string field, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes configured Redis operations atomically when every condition added by <paramref name="configure"/> succeeds.
+    /// </summary>
+    ValueTask<bool> ExecuteTransaction(Action<ITransaction> configure, CancellationToken cancellationToken = default);
 }

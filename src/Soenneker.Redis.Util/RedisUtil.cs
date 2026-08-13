@@ -20,7 +20,7 @@ namespace Soenneker.Redis.Util;
 
 // TODO: Time to break this up
 /// <inheritdoc cref="IRedisUtil"/>
-public sealed class RedisUtil : IRedisUtil
+public sealed partial class RedisUtil : IRedisUtil
 {
     private readonly bool _log;
     private readonly JsonOptionType _jsonOptionType;

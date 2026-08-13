@@ -6,6 +6,7 @@ using Soenneker.Extensions.String;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Redis.Util.Tests.Dtos;
 using Soenneker.Tests.HostedUnit;
+using StackExchange.Redis;
 
 
 namespace Soenneker.Redis.Util.Tests;
@@ -151,6 +152,62 @@ public class RedisUtilTests : HostedUnitTest
         ttl.Should().BeLessThan(System.TimeSpan.FromSeconds(15));
 
         await _util.Remove("test", key, cancellationToken: System.Threading.CancellationToken.None);
+    }
+
+    [Test]
+    public async Task List_operations_should_preserve_order()
+    {
+        string key = $"test:list:{Faker.Random.AlphaNumeric(20)}";
+        await _util.PushListRight(key, "first");
+        await _util.PushListRight(key, "second");
+
+        (await _util.GetListLength(key)).Should().Be(2);
+        (await _util.GetListValue(key, 0)).Should().Be("first");
+        (await _util.PopListLeft(key)).Should().Be("first");
+        (await _util.PopListLeft(key)).Should().Be("second");
+
+        await _util.Remove(key);
+    }
+
+    [Test]
+    public async Task Set_and_sorted_set_operations_should_round_trip()
+    {
+        string setKey = $"test:set:{Faker.Random.AlphaNumeric(20)}";
+        string sortedSetKey = $"test:sorted:{Faker.Random.AlphaNumeric(20)}";
+
+        (await _util.AddSetValue(setKey, "member")).Should().BeTrue();
+        (await _util.GetSetValues(setKey)).Should().Contain("member");
+        (await _util.RemoveSetValue(setKey, "member")).Should().BeTrue();
+
+        (await _util.AddSortedSetValue(sortedSetKey, "later", 2)).Should().BeTrue();
+        (await _util.AddSortedSetValue(sortedSetKey, "first", 1)).Should().BeTrue();
+        (await _util.GetSortedSetScore(sortedSetKey, "later")).Should().Be(2);
+        (await _util.GetSortedSetValuesByScore(sortedSetKey, maximumScore: 2)).Should().ContainInOrder("first", "later");
+
+        await _util.Remove(setKey);
+        await _util.Remove(sortedSetKey);
+    }
+
+    [Test]
+    public async Task Transaction_should_apply_operations_when_condition_matches()
+    {
+        string sourceKey = $"test:transaction-source:{Faker.Random.AlphaNumeric(20)}";
+        string destinationKey = $"test:transaction-destination:{Faker.Random.AlphaNumeric(20)}";
+        await _util.PushListRight(sourceKey, "work-item");
+
+        bool executed = await _util.ExecuteTransaction(transaction =>
+        {
+            transaction.AddCondition(Condition.ListIndexEqual(sourceKey, 0, "work-item"));
+            _ = transaction.ListLeftPopAsync(sourceKey);
+            _ = transaction.ListRightPushAsync(destinationKey, "work-item");
+        });
+
+        executed.Should().BeTrue();
+        (await _util.GetListLength(sourceKey)).Should().Be(0);
+        (await _util.GetListValue(destinationKey, 0)).Should().Be("work-item");
+
+        await _util.Remove(sourceKey);
+        await _util.Remove(destinationKey);
     }
 
     [Test]
