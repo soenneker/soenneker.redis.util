@@ -164,17 +164,6 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public void BuildKey_multiple_should_produce_expected()
-    {
-        string? key1 = Faker.Random.AlphaNumeric(25);
-        string? key2 = Faker.Random.AlphaNumeric(25);
-
-        string result = RedisUtil.BuildKey("test", key1, key2);
-
-        result.Should().Be($"test:{key1}:{key2}");
-    }
-
-    [Test]
     public void BuildKey_with_malicious_key_should_produce_expected()
     {
         const string key = " ; ' test";
@@ -185,15 +174,5 @@ public class RedisUtilTests : HostedUnitTest
         result.Should().Be($"test:{escaped}");
     }
 
-    [Test]
-    public void Get_key_with_multiple_should_produce_expected()
-    {
-        string? key1 = Faker.Random.AlphaNumeric(25);
-        string? key2 = Faker.Random.AlphaNumeric(25);
-
-        string result = RedisUtil.BuildKey("test", key1, key2);
-
-        result.Should().Be($"test:{key1}:{key2}");
-    }
 }
 

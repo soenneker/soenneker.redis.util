@@ -920,45 +920,4 @@ public sealed class RedisUtil : IRedisUtil
         return psb.ToString();
     }
 
-    /// <summary>
-    /// Escapes the keys for safety. Optimized for speed.
-    /// NOTE: params callsites allocate an array; for hot paths consider adding fixed-arity overloads.
-    /// </summary>
-    [Pure]
-    [Obsolete]
-    public static string BuildKey(string cacheKey, params string?[] keys)
-    {
-        if (keys.Length == 0)
-            return cacheKey;
-
-        int total = cacheKey.Length;
-
-        var escaped = new string?[keys.Length];
-
-        for (var i = 0; i < keys.Length; i++)
-        {
-            string? k = keys[i];
-            if (k is null)
-                continue;
-
-            string e = k.ToEscaped();
-            escaped[i] = e;
-            total += 1 + e.Length;
-        }
-
-        using var psb = new PooledStringBuilder(total);
-        psb.Append(cacheKey);
-
-        for (var i = 0; i < escaped.Length; i++)
-        {
-            string? e = escaped[i];
-            if (e is null)
-                continue;
-
-            psb.Append(':');
-            psb.Append(e);
-        }
-
-        return psb.ToString();
-    }
 }
