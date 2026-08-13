@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -124,6 +125,14 @@ public interface IRedisUtil
     /// </list>
     /// </returns>
     ValueTask<string?> GetString(string redisKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Counts how many of the specified fully-qualified Redis keys currently exist.
+    /// </summary>
+    /// <param name="redisKeys">The keys to inspect in one Redis operation.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for Redis.</param>
+    /// <returns>The number of existing keys, or <c>null</c> when the operation fails.</returns>
+    ValueTask<long?> CountExisting(IReadOnlyList<string> redisKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stores an object of type <typeparamref name="T"/> under a Redis key composed of a base <paramref name="cacheKey"/> 
@@ -534,6 +543,28 @@ public interface IRedisUtil
     /// <param name="useQueue">Whether to enqueue this operation in the background queue.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     ValueTask<bool> Expire(string redisKey, TimeSpan? expiration, bool useQueue = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically sets an expiration on a key only when its current value matches <paramref name="expectedValue"/>.
+    /// </summary>
+    /// <param name="cacheKey">The base cache key.</param>
+    /// <param name="key">An optional sub-key to append to <paramref name="cacheKey"/>.</param>
+    /// <param name="expectedValue">The value that must currently be stored.</param>
+    /// <param name="expiration">The new expiration. Must be greater than zero.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for Redis.</param>
+    /// <returns><c>true</c> when the value matched and the expiration was updated; otherwise <c>false</c>.</returns>
+    ValueTask<bool> ExpireIfEqual(string cacheKey, string? key, string expectedValue, TimeSpan expiration,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically sets an expiration on a fully-qualified key only when its current value matches <paramref name="expectedValue"/>.
+    /// </summary>
+    /// <param name="redisKey">The fully-qualified Redis key.</param>
+    /// <param name="expectedValue">The value that must currently be stored.</param>
+    /// <param name="expiration">The new expiration. Must be greater than zero.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for Redis.</param>
+    /// <returns><c>true</c> when the value matched and the expiration was updated; otherwise <c>false</c>.</returns>
+    ValueTask<bool> ExpireIfEqual(string redisKey, string expectedValue, TimeSpan expiration, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the remaining TTL (time to live) for a key, or null if it does not exist or has no expiration.

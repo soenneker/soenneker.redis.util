@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
@@ -41,6 +42,24 @@ public class RedisUtilTests : HostedUnitTest
         string? rtnValue = await _util.GetString("test", System.Threading.CancellationToken.None);
 
         rtnValue.Should().Be("1");
+    }
+
+    [Test]
+    public async Task CountExisting_should_count_keys_in_one_operation()
+    {
+        string first = $"test:{Faker.Random.AlphaNumeric(20)}";
+        string second = $"test:{Faker.Random.AlphaNumeric(20)}";
+        string missing = $"test:{Faker.Random.AlphaNumeric(20)}";
+
+        await _util.Set(first, "1", cancellationToken: System.Threading.CancellationToken.None);
+        await _util.Set(second, "1", cancellationToken: System.Threading.CancellationToken.None);
+
+        long? count = await _util.CountExisting(new List<string> {first, second, missing}, System.Threading.CancellationToken.None);
+
+        count.Should().Be(2);
+
+        await _util.Remove(first, cancellationToken: System.Threading.CancellationToken.None);
+        await _util.Remove(second, cancellationToken: System.Threading.CancellationToken.None);
     }
 
     [Test]
@@ -96,6 +115,40 @@ public class RedisUtilTests : HostedUnitTest
 
         removed.Should().BeFalse();
         result.Should().Be(value);
+
+        await _util.Remove("test", key, cancellationToken: System.Threading.CancellationToken.None);
+    }
+
+    [Test]
+    public async Task ExpireIfEqual_should_renew_matching_value()
+    {
+        string key = Faker.Random.AlphaNumeric(20);
+        string value = Faker.Random.AlphaNumeric(20);
+
+        await _util.Set("test", key, value, System.TimeSpan.FromSeconds(10), cancellationToken: System.Threading.CancellationToken.None);
+
+        bool renewed = await _util.ExpireIfEqual("test", key, value, System.TimeSpan.FromMinutes(1), System.Threading.CancellationToken.None);
+        System.TimeSpan? ttl = await _util.GetTimeToLive("test", key, System.Threading.CancellationToken.None);
+
+        renewed.Should().BeTrue();
+        ttl.Should().BeGreaterThan(System.TimeSpan.FromSeconds(50));
+
+        await _util.Remove("test", key, cancellationToken: System.Threading.CancellationToken.None);
+    }
+
+    [Test]
+    public async Task ExpireIfEqual_should_preserve_ttl_for_nonmatching_value()
+    {
+        string key = Faker.Random.AlphaNumeric(20);
+        string value = Faker.Random.AlphaNumeric(20);
+
+        await _util.Set("test", key, value, System.TimeSpan.FromSeconds(10), cancellationToken: System.Threading.CancellationToken.None);
+
+        bool renewed = await _util.ExpireIfEqual("test", key, "different", System.TimeSpan.FromMinutes(1), System.Threading.CancellationToken.None);
+        System.TimeSpan? ttl = await _util.GetTimeToLive("test", key, System.Threading.CancellationToken.None);
+
+        renewed.Should().BeFalse();
+        ttl.Should().BeLessThan(System.TimeSpan.FromSeconds(15));
 
         await _util.Remove("test", key, cancellationToken: System.Threading.CancellationToken.None);
     }

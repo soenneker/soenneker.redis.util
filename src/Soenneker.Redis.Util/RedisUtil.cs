@@ -10,6 +10,7 @@ using Soenneker.Utils.Json;
 using Soenneker.Utils.PooledStringBuilders;
 using StackExchange.Redis;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -153,6 +154,42 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error getting key: {key}", redisKey);
+            return null;
+        }
+    }
+
+    public async ValueTask<long?> CountExisting(IReadOnlyList<string> redisKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(redisKeys);
+
+        if (redisKeys.Count == 0)
+            return 0;
+
+        var keys = new RedisKey[redisKeys.Count];
+
+        for (var i = 0; i < keys.Length; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string redisKey = redisKeys[i];
+
+            if (redisKey.IsNullOrEmpty())
+            {
+                LogSkipKeyEmpty();
+                return null;
+            }
+
+            keys[i] = redisKey;
+        }
+
+        try
+        {
+            IDatabase db = await GetDb(cancellationToken).NoSync();
+            return await Await(db.KeyExistsAsync(keys), cancellationToken).NoSync();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error counting existing keys");
             return null;
         }
     }
@@ -763,6 +800,67 @@ public sealed class RedisUtil : IRedisUtil
         catch (Exception e)
         {
             _logger.LogError(e, ">> REDIS: Error setting expiration on key: {key}", redisKey);
+            return false;
+        }
+    }
+
+    public ValueTask<bool> ExpireIfEqual(string cacheKey, string? key, string expectedValue, TimeSpan expiration,
+        CancellationToken cancellationToken = default)
+    {
+        string redisKey = BuildKey(cacheKey, key);
+        return ExpireIfEqual(redisKey, expectedValue, expiration, cancellationToken);
+    }
+
+    public ValueTask<bool> ExpireIfEqual(string redisKey, string expectedValue, TimeSpan expiration,
+        CancellationToken cancellationToken = default)
+    {
+        if (redisKey.IsNullOrEmpty())
+        {
+            LogSkipKeyEmpty();
+            return new ValueTask<bool>(false);
+        }
+
+        if (expectedValue.IsNullOrEmpty())
+        {
+            LogSkipValueEmpty();
+            return new ValueTask<bool>(false);
+        }
+
+        if (expiration <= TimeSpan.Zero)
+        {
+            _logger.LogError(">> REDIS: Skipping ExpireIfEqual because the expiration is not greater than zero");
+            return new ValueTask<bool>(false);
+        }
+
+        return InternalKeyExpireIfEqual((RedisKey) redisKey, (RedisValue) expectedValue, expiration, cancellationToken);
+    }
+
+    private async ValueTask<bool> InternalKeyExpireIfEqual(RedisKey redisKey, RedisValue expectedValue, TimeSpan expiration,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            IDatabase db = await GetDb(cancellationToken).NoSync();
+            ITransaction transaction = db.CreateTransaction();
+
+            transaction.AddCondition(Condition.StringEqual(redisKey, expectedValue));
+            Task<bool> expireTask = transaction.KeyExpireAsync(redisKey, expiration);
+
+            bool executed = await Await(transaction.ExecuteAsync(), cancellationToken).NoSync();
+
+            if (!executed)
+                return false;
+
+            bool renewed = await Await(expireTask, cancellationToken).NoSync();
+
+            if (_log)
+                _logger.LogDebug(">> REDIS: Set expiration on key if equal: {key}. Result: {result}", redisKey, renewed);
+
+            return renewed;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error setting expiration on key if equal: {key}", redisKey);
             return false;
         }
     }
