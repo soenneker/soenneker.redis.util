@@ -920,4 +920,74 @@ public sealed partial class RedisUtil : IRedisUtil
         return psb.ToString();
     }
 
+    /// <summary>
+    /// Escapes the keys for safety.
+    /// </summary>
+    [Pure]
+    public static string BuildKey(string cacheKey, string? key1, string? key2)
+    {
+        string? escaped1 = key1?.ToEscaped();
+        string? escaped2 = key2?.ToEscaped();
+
+        if (escaped1 == null && escaped2 == null)
+            return cacheKey;
+
+        int capacity = cacheKey.Length + (escaped1 == null ? 0 : 1 + escaped1.Length) + (escaped2 == null ? 0 : 1 + escaped2.Length);
+        using var psb = new PooledStringBuilder(capacity);
+        psb.Append(cacheKey);
+
+        if (escaped1 != null)
+        {
+            psb.Append(':');
+            psb.Append(escaped1);
+        }
+
+        if (escaped2 != null)
+        {
+            psb.Append(':');
+            psb.Append(escaped2);
+        }
+
+        return psb.ToString();
+    }
+
+    /// <summary>
+    /// Escapes the keys for safety.
+    /// </summary>
+    [Pure]
+    public static string BuildKey(string cacheKey, string? key1, string? key2, string? key3)
+    {
+        string? escaped1 = key1?.ToEscaped();
+        string? escaped2 = key2?.ToEscaped();
+        string? escaped3 = key3?.ToEscaped();
+
+        if (escaped1 == null && escaped2 == null && escaped3 == null)
+            return cacheKey;
+
+        int capacity = cacheKey.Length + (escaped1 == null ? 0 : 1 + escaped1.Length) + (escaped2 == null ? 0 : 1 + escaped2.Length) +
+                       (escaped3 == null ? 0 : 1 + escaped3.Length);
+        using var psb = new PooledStringBuilder(capacity);
+        psb.Append(cacheKey);
+
+        if (escaped1 != null)
+        {
+            psb.Append(':');
+            psb.Append(escaped1);
+        }
+
+        if (escaped2 != null)
+        {
+            psb.Append(':');
+            psb.Append(escaped2);
+        }
+
+        if (escaped3 != null)
+        {
+            psb.Append(':');
+            psb.Append(escaped3);
+        }
+
+        return psb.ToString();
+    }
+
 }

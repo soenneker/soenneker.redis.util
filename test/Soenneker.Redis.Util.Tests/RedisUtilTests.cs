@@ -231,5 +231,22 @@ public class RedisUtilTests : HostedUnitTest
         result.Should().Be($"test:{escaped}");
     }
 
+    [Test]
+    public void BuildKey_with_two_keys_should_produce_expected()
+    {
+        string result = RedisUtil.BuildKey("test", "one", "two");
+
+        result.Should().Be("test:one:two");
+    }
+
+    [Test]
+    public void BuildKey_with_three_keys_should_escape_and_skip_null_keys()
+    {
+        const string key = " ; ' test";
+        string result = RedisUtil.BuildKey("test", "one", null, key);
+
+        result.Should().Be($"test:one:{key.ToEscaped()}");
+    }
+
 }
 
