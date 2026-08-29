@@ -14,6 +14,8 @@ public static class RedisUtilRegistrar
     /// <summary>
     /// Adds <see cref="IRedisUtil"/> as a singleton service. <para/>
     /// </summary>
+    /// <param name="services">Service collection that receives the registration.</param>
+    /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddRedisUtilAsSingleton(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()
@@ -24,10 +26,10 @@ public static class RedisUtilRegistrar
     }
 
     /// <summary>
-    /// Adds redis util as scoped.
+    /// Registers Redis Util with a scoped lifetime.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="services">Service collection that receives the registration.</param>
+    /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddRedisUtilAsScoped(this IServiceCollection services)
     {
         services.AddBackgroundQueueAsSingleton()

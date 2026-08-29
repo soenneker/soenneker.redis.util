@@ -906,6 +906,9 @@ public sealed partial class RedisUtil : IRedisUtil
     /// <summary>
     /// Escapes the keys for safety.
     /// </summary>
+    /// <param name="cacheKey">Base cache key used to build the Redis key.</param>
+    /// <param name="key">Optional child key appended to the base cache key; null targets the base key itself.</param>
+    /// <returns>The text produced by build Key.</returns>
     [Pure]
     public static string BuildKey(string cacheKey, string? key)
     {
@@ -923,6 +926,10 @@ public sealed partial class RedisUtil : IRedisUtil
     /// <summary>
     /// Escapes the keys for safety.
     /// </summary>
+    /// <param name="cacheKey">Base cache key used to build the Redis key.</param>
+    /// <param name="key1">Key for the build key operation.</param>
+    /// <param name="key2">Key for the build key operation.</param>
+    /// <returns>The text produced by build Key.</returns>
     [Pure]
     public static string BuildKey(string cacheKey, string? key1, string? key2)
     {
@@ -954,6 +961,11 @@ public sealed partial class RedisUtil : IRedisUtil
     /// <summary>
     /// Escapes the keys for safety.
     /// </summary>
+    /// <param name="cacheKey">Base cache key used to build the Redis key.</param>
+    /// <param name="key1">Key for the build key operation.</param>
+    /// <param name="key2">Key for the build key operation.</param>
+    /// <param name="key3">Key for the build key operation.</param>
+    /// <returns>The text produced by build Key.</returns>
     [Pure]
     public static string BuildKey(string cacheKey, string? key1, string? key2, string? key3)
     {
