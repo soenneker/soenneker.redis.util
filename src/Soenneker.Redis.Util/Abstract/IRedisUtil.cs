@@ -7,8 +7,7 @@ using StackExchange.Redis;
 namespace Soenneker.Redis.Util.Abstract;
 
 /// <summary>
-/// Defines a set of operations for interacting with Redis, 
-/// including getting, setting, removing, incrementing, and decrementing values.
+/// Provides cache-oriented Redis value, collection, expiration, counter, and transaction operations.
 /// </summary>
 public interface IRedisUtil
 {

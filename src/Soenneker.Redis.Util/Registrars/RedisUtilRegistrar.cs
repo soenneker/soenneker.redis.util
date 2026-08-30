@@ -7,12 +7,12 @@ using Soenneker.Utils.BackgroundQueue.Registrars;
 namespace Soenneker.Redis.Util.Registrars;
 
 /// <summary>
-/// The general purpose utility library leveraging Redis for all of your caching needs
+/// Registers the Redis utility and its shared transport dependencies.
 /// </summary>
 public static class RedisUtilRegistrar
 {
     /// <summary>
-    /// Adds <see cref="IRedisUtil"/> as a singleton service. <para/>
+    /// Adds <see cref="IRedisUtil"/>, the Redis client, and the background queue as singleton services.
     /// </summary>
     /// <param name="services">Service collection that receives the registration.</param>
     /// <returns>The same service collection, so additional registrations can be chained.</returns>
@@ -26,7 +26,7 @@ public static class RedisUtilRegistrar
     }
 
     /// <summary>
-    /// Registers Redis Util with a scoped lifetime.
+    /// Adds a scoped <see cref="IRedisUtil"/> backed by a singleton Redis client and background queue.
     /// </summary>
     /// <param name="services">Service collection that receives the registration.</param>
     /// <returns>The same service collection, so additional registrations can be chained.</returns>
