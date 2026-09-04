@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Redis.Util;
 
+/// <inheritdoc cref="IRedisUtil" />
 public sealed partial class RedisUtil : IRedisUtil
 {
     private readonly bool _log;
