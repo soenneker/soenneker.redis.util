@@ -42,9 +42,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2307" />
+        <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2308" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2478" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2670" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2671" />
         <PackageReference Include="Soenneker.Utils.Method" Version="4.0.461" />
     </ItemGroup>
 </Project>
