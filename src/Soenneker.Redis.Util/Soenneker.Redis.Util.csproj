@@ -42,7 +42,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2311" />
+        <ProjectReference Include="..\..\..\soenneker.redis.client\src\Soenneker.Redis.Client\Soenneker.Redis.Client.csproj" Condition="Exists('..\..\..\soenneker.redis.client\src\Soenneker.Redis.Client\Soenneker.Redis.Client.csproj')" />
+        <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2311" Condition="!Exists('..\..\..\soenneker.redis.client\src\Soenneker.Redis.Client\Soenneker.Redis.Client.csproj')" />
         <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2480" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2677" />
         <PackageReference Include="Soenneker.Utils.Method" Version="4.0.461" />

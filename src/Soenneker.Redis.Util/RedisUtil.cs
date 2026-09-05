@@ -552,17 +552,7 @@ public sealed partial class RedisUtil : IRedisUtil
         try
         {
             IDatabase db = await GetDb(cancellationToken).NoSync();
-            ITransaction transaction = db.CreateTransaction();
-
-            transaction.AddCondition(Condition.StringEqual(redisKey, expectedValue));
-            Task<bool> deleteTask = transaction.KeyDeleteAsync(redisKey);
-
-            bool executed = await Await(transaction.ExecuteAsync(), cancellationToken).NoSync();
-
-            if (!executed)
-                return false;
-
-            bool removed = await Await(deleteTask, cancellationToken).NoSync();
+            bool removed = await Atomics.RedisAtomics.CompareDelete(db, redisKey, expectedValue, cancellationToken).ConfigureAwait(false);
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Removed key if equal: {key}. Result: {result}", redisKey, removed);
@@ -840,17 +830,7 @@ public sealed partial class RedisUtil : IRedisUtil
         try
         {
             IDatabase db = await GetDb(cancellationToken).NoSync();
-            ITransaction transaction = db.CreateTransaction();
-
-            transaction.AddCondition(Condition.StringEqual(redisKey, expectedValue));
-            Task<bool> expireTask = transaction.KeyExpireAsync(redisKey, expiration);
-
-            bool executed = await Await(transaction.ExecuteAsync(), cancellationToken).NoSync();
-
-            if (!executed)
-                return false;
-
-            bool renewed = await Await(expireTask, cancellationToken).NoSync();
+            bool renewed = await Atomics.RedisAtomics.CompareExpire(db, redisKey, expectedValue, expiration, cancellationToken).ConfigureAwait(false);
 
             if (_log)
                 _logger.LogDebug(">> REDIS: Set expiration on key if equal: {key}. Result: {result}", redisKey, renewed);
