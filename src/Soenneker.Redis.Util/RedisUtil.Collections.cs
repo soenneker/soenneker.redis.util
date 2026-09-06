@@ -31,7 +31,8 @@ public sealed partial class RedisUtil
         }
     }
 
-    public async ValueTask<string?> GetListValue(string redisKey, long index, CancellationToken cancellationToken = default)
+    public async ValueTask<string?> GetListValue(string redisKey, long index,
+        CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -73,24 +74,31 @@ public sealed partial class RedisUtil
         }
     }
 
-    public ValueTask<long?> PushListLeft(string redisKey, string value, CancellationToken cancellationToken = default) =>
+    public ValueTask<long?> PushListLeft(string redisKey, string value,
+        CancellationToken cancellationToken = default) =>
         PushList(redisKey, value, left: true, cancellationToken);
 
-    public ValueTask<long?> PushListRight(string redisKey, string value, CancellationToken cancellationToken = default) =>
+    public ValueTask<long?> PushListRight(string redisKey, string value,
+        CancellationToken cancellationToken = default) =>
         PushList(redisKey, value, left: false, cancellationToken);
 
-    private async ValueTask<long?> PushList(string redisKey, string value, bool left, CancellationToken cancellationToken)
+    private async ValueTask<long?> PushList(string redisKey, string value, bool left,
+        CancellationToken cancellationToken)
     {
         if (redisKey.IsNullOrEmpty() || value.IsNullOrEmpty())
         {
-            if (redisKey.IsNullOrEmpty()) LogSkipKeyEmpty(); else LogSkipValueEmpty();
+            if (redisKey.IsNullOrEmpty())
+                LogSkipKeyEmpty();
+            else
+                LogSkipValueEmpty();
             return null;
         }
 
         try
         {
             IDatabase db = await GetDb(cancellationToken).NoSync();
-            Task<long> operation = left ? db.ListLeftPushAsync(redisKey, value) : db.ListRightPushAsync(redisKey, value);
+            Task<long> operation =
+                left ? db.ListLeftPushAsync(redisKey, value) : db.ListRightPushAsync(redisKey, value);
             return await Await(operation, cancellationToken).NoSync();
         }
         catch (Exception exception)
@@ -103,14 +111,19 @@ public sealed partial class RedisUtil
     public ValueTask<bool> AddSetValue(string redisKey, string value, CancellationToken cancellationToken = default) =>
         ChangeSet(redisKey, value, add: true, cancellationToken);
 
-    public ValueTask<bool> RemoveSetValue(string redisKey, string value, CancellationToken cancellationToken = default) =>
+    public ValueTask<bool> RemoveSetValue(string redisKey, string value,
+        CancellationToken cancellationToken = default) =>
         ChangeSet(redisKey, value, add: false, cancellationToken);
 
-    private async ValueTask<bool> ChangeSet(string redisKey, string value, bool add, CancellationToken cancellationToken)
+    private async ValueTask<bool> ChangeSet(string redisKey, string value, bool add,
+        CancellationToken cancellationToken)
     {
         if (redisKey.IsNullOrEmpty() || value.IsNullOrEmpty())
         {
-            if (redisKey.IsNullOrEmpty()) LogSkipKeyEmpty(); else LogSkipValueEmpty();
+            if (redisKey.IsNullOrEmpty())
+                LogSkipKeyEmpty();
+            else
+                LogSkipValueEmpty();
             return false;
         }
 
@@ -127,7 +140,8 @@ public sealed partial class RedisUtil
         }
     }
 
-    public async ValueTask<IReadOnlyList<string>?> GetSetValues(string redisKey, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<string>?> GetSetValues(string redisKey,
+        CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -148,8 +162,9 @@ public sealed partial class RedisUtil
         }
     }
 
-    public async ValueTask<IReadOnlyList<string>?> GetSortedSetValuesByScore(string redisKey, double minimumScore = double.NegativeInfinity,
-        double maximumScore = double.PositiveInfinity, long skip = 0, long take = -1, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<string>?> GetSortedSetValuesByScore(string redisKey,
+        double minimumScore = double.NegativeInfinity, double maximumScore = double.PositiveInfinity, long skip = 0,
+        long take = -1, CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty())
         {
@@ -160,8 +175,9 @@ public sealed partial class RedisUtil
         try
         {
             IDatabase db = await GetDb(cancellationToken).NoSync();
-            RedisValue[] values = await Await(db.SortedSetRangeByScoreAsync(redisKey, minimumScore, maximumScore, skip: skip, take: take),
-                cancellationToken).NoSync();
+            RedisValue[] values =
+                await Await(db.SortedSetRangeByScoreAsync(redisKey, minimumScore, maximumScore, skip: skip, take: take),
+                    cancellationToken).NoSync();
             return ConvertValues(values);
         }
         catch (Exception exception)
@@ -171,11 +187,15 @@ public sealed partial class RedisUtil
         }
     }
 
-    public async ValueTask<double?> GetSortedSetScore(string redisKey, string value, CancellationToken cancellationToken = default)
+    public async ValueTask<double?> GetSortedSetScore(string redisKey, string value,
+        CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty() || value.IsNullOrEmpty())
         {
-            if (redisKey.IsNullOrEmpty()) LogSkipKeyEmpty(); else LogSkipValueEmpty();
+            if (redisKey.IsNullOrEmpty())
+                LogSkipKeyEmpty();
+            else
+                LogSkipValueEmpty();
             return null;
         }
 
@@ -191,24 +211,31 @@ public sealed partial class RedisUtil
         }
     }
 
-    public ValueTask<bool> AddSortedSetValue(string redisKey, string value, double score, CancellationToken cancellationToken = default) =>
+    public ValueTask<bool> AddSortedSetValue(string redisKey, string value, double score,
+        CancellationToken cancellationToken = default) =>
         ChangeSortedSet(redisKey, value, score, add: true, cancellationToken);
 
-    public ValueTask<bool> RemoveSortedSetValue(string redisKey, string value, CancellationToken cancellationToken = default) =>
+    public ValueTask<bool> RemoveSortedSetValue(string redisKey, string value,
+        CancellationToken cancellationToken = default) =>
         ChangeSortedSet(redisKey, value, 0, add: false, cancellationToken);
 
-    private async ValueTask<bool> ChangeSortedSet(string redisKey, string value, double score, bool add, CancellationToken cancellationToken)
+    private async ValueTask<bool> ChangeSortedSet(string redisKey, string value, double score, bool add,
+        CancellationToken cancellationToken)
     {
         if (redisKey.IsNullOrEmpty() || value.IsNullOrEmpty())
         {
-            if (redisKey.IsNullOrEmpty()) LogSkipKeyEmpty(); else LogSkipValueEmpty();
+            if (redisKey.IsNullOrEmpty())
+                LogSkipKeyEmpty();
+            else
+                LogSkipValueEmpty();
             return false;
         }
 
         try
         {
             IDatabase db = await GetDb(cancellationToken).NoSync();
-            Task<bool> operation = add ? db.SortedSetAddAsync(redisKey, value, score) : db.SortedSetRemoveAsync(redisKey, value);
+            Task<bool> operation =
+                add ? db.SortedSetAddAsync(redisKey, value, score) : db.SortedSetRemoveAsync(redisKey, value);
             return await Await(operation, cancellationToken).NoSync();
         }
         catch (Exception exception)
@@ -218,11 +245,15 @@ public sealed partial class RedisUtil
         }
     }
 
-    public async ValueTask<bool> RemoveHashField(string redisKey, string field, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> RemoveHashField(string redisKey, string field,
+        CancellationToken cancellationToken = default)
     {
         if (redisKey.IsNullOrEmpty() || field.IsNullOrEmpty())
         {
-            if (redisKey.IsNullOrEmpty()) LogSkipKeyEmpty(); else LogSkipValueEmpty();
+            if (redisKey.IsNullOrEmpty())
+                LogSkipKeyEmpty();
+            else
+                LogSkipValueEmpty();
             return false;
         }
 
@@ -238,7 +269,8 @@ public sealed partial class RedisUtil
         }
     }
 
-    public async ValueTask<bool> ExecuteTransaction(Action<ITransaction> configure, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ExecuteTransaction(Action<ITransaction> configure,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
