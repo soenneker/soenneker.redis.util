@@ -7,7 +7,6 @@ using Soenneker.Redis.Client.Abstract;
 using Soenneker.Redis.Util.Abstract;
 using Soenneker.Utils.BackgroundQueue.Abstract;
 using Soenneker.Utils.Json;
-using Soenneker.Utils.PooledStringBuilders;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
@@ -59,6 +58,34 @@ public sealed partial class RedisUtil : IRedisUtil
             return new ValueTask<T>(task);
 
         return new ValueTask<T>(task.WaitAsync(ct));
+    }
+
+    private static ValueTask<Lease<byte>?> AwaitLease(Task<Lease<byte>?> task, CancellationToken ct)
+    {
+        if (!ct.CanBeCanceled || task.IsCompleted)
+            return new ValueTask<Lease<byte>?>(task);
+
+        return AwaitSlow(task, ct);
+
+        static async ValueTask<Lease<byte>?> AwaitSlow(Task<Lease<byte>?> task, CancellationToken ct)
+        {
+            try
+            {
+                return await task.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Redis still owns the pending operation. Reclaim its result if the caller stops waiting.
+                _ = task.ContinueWith(static completed =>
+                {
+                    if (completed.IsCompletedSuccessfully)
+                        completed.Result?.Dispose();
+                    else
+                        _ = completed.Exception;
+                }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                throw;
+            }
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -138,14 +165,14 @@ public sealed partial class RedisUtil : IRedisUtil
 
             if (rv.IsNull)
             {
-                if (_log)
+                if (_log && _logger.IsEnabled(LogLevel.Debug))
                     _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
                 return null;
             }
 
             string? value = (string?)rv;
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Retrieved key: {key} \r\n {result}", redisKey, value);
 
             return value;
@@ -205,9 +232,9 @@ public sealed partial class RedisUtil : IRedisUtil
         {
             IDatabase db = await GetDb(cancellationToken).NoSync();
 
-            Lease<byte>? lease = await Await(db.StringGetLeaseAsync(redisKey), cancellationToken).NoSync();
+            Lease<byte>? lease = await AwaitLease(db.StringGetLeaseAsync(redisKey), cancellationToken).NoSync();
 
-            if (_log && lease is null)
+            if (_log && lease is null && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
 
             return lease;
@@ -243,14 +270,14 @@ public sealed partial class RedisUtil : IRedisUtil
 
             if (rv.IsNull)
             {
-                if (_log)
+                if (_log && _logger.IsEnabled(LogLevel.Debug))
                     _logger.LogDebug(">> REDIS: Key {key} does not exist", redisKey);
                 return null;
             }
 
             string? value = (string?)rv;
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Retrieved key: {key} \r\n {result}", redisKey, value);
 
             return value;
@@ -401,7 +428,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             _ = await Await(db.StringSetAsync(redisKey, redisValue, expiration, false), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
             {
                 string expirationStr = expiration == null ? "never" : expiration.Value.ToString("c");
                 _logger.LogDebug(">> REDIS: Set key: {key} (expires in: {expiration}) \r\n {redisValue}", redisKey,
@@ -424,7 +451,7 @@ public sealed partial class RedisUtil : IRedisUtil
             bool result = await Await(db.StringSetAsync(redisKey, redisValue, expiration, false, When.NotExists),
                 cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
             {
                 string expirationStr = expiration == null ? "never" : expiration.Value.ToString("c");
                 _logger.LogDebug(
@@ -474,7 +501,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             await Await(db.HashSetAsync(redisKey, field, redisValue), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Set HASH key: {key} \r\n {redisValue}", redisKey, redisValue);
         }
         catch (Exception e)
@@ -515,7 +542,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             _ = await Await(db.KeyDeleteAsync(redisKey), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Removed key: {key}", redisKey);
         }
         catch (Exception e)
@@ -554,7 +581,7 @@ public sealed partial class RedisUtil : IRedisUtil
             IDatabase db = await GetDb(cancellationToken).NoSync();
             bool removed = await Atomics.RedisAtomics.CompareDelete(db, redisKey, expectedValue, cancellationToken).ConfigureAwait(false);
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Removed key if equal: {key}. Result: {result}", redisKey, removed);
 
             return removed;
@@ -608,7 +635,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             long newValue = await Await(db.StringDecrementAsync(redisKey, delta), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Decremented key: {key} by {delta}. New value: {newValue}", redisKey, delta,
                     newValue);
         }
@@ -630,7 +657,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             long newValue = await Await(db.StringDecrementAsync(redisKey, delta), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Decremented key: {key} by {delta}. New value: {newValue}", redisKey, delta,
                     newValue);
 
@@ -681,7 +708,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             long newValue = await Await(db.StringIncrementAsync(redisKey, delta), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Incremented key: {key} by {delta}. New value: {newValue}", redisKey, delta,
                     newValue);
         }
@@ -700,7 +727,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             long newValue = await Await(db.StringIncrementAsync(redisKey, delta), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Incremented key: {key} by {delta}. New value: {newValue}", redisKey, delta,
                     newValue);
 
@@ -755,7 +782,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             bool result = await Await(db.KeyExpireAsync(redisKey, expiration), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
             {
                 string expirationStr = expiration!.Value.ToString("c");
                 _logger.LogDebug(">> REDIS: Set expiration on key: {key} (expires in: {timespan}) Result: {result}",
@@ -777,7 +804,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             bool result = await Await(db.KeyExpireAsync(redisKey, expiration), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
             {
                 string expirationStr = expiration!.Value.ToString("c");
                 _logger.LogDebug(">> REDIS: Set expiration on key: {key} (expires in: {timespan}) Result: {result}",
@@ -832,7 +859,7 @@ public sealed partial class RedisUtil : IRedisUtil
             IDatabase db = await GetDb(cancellationToken).NoSync();
             bool renewed = await Atomics.RedisAtomics.CompareExpire(db, redisKey, expectedValue, expiration, cancellationToken).ConfigureAwait(false);
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
                 _logger.LogDebug(">> REDIS: Set expiration on key if equal: {key}. Result: {result}", redisKey, renewed);
 
             return renewed;
@@ -865,7 +892,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
             TimeSpan? ttl = await Await(db.KeyTimeToLiveAsync(redisKey), cancellationToken).NoSync();
 
-            if (_log)
+            if (_log && _logger.IsEnabled(LogLevel.Debug))
             {
                 if (ttl == null)
                     _logger.LogDebug(">> REDIS: Key {key} does not exist or has no expiration", redisKey);
@@ -894,12 +921,7 @@ public sealed partial class RedisUtil : IRedisUtil
         if (key == null)
             return cacheKey;
 
-        string escaped = key.ToEscaped();
-        using var psb = new PooledStringBuilder(cacheKey.Length + 1 + escaped.Length);
-        psb.Append(cacheKey);
-        psb.Append(':');
-        psb.Append(escaped);
-        return psb.ToString();
+        return BuildEscapedKey(cacheKey, key.ToEscaped(), null, null);
     }
 
     /// <summary>
@@ -912,29 +934,7 @@ public sealed partial class RedisUtil : IRedisUtil
     [Pure]
     public static string BuildKey(string cacheKey, string? key1, string? key2)
     {
-        string? escaped1 = key1?.ToEscaped();
-        string? escaped2 = key2?.ToEscaped();
-
-        if (escaped1 == null && escaped2 == null)
-            return cacheKey;
-
-        int capacity = cacheKey.Length + (escaped1 == null ? 0 : 1 + escaped1.Length) + (escaped2 == null ? 0 : 1 + escaped2.Length);
-        using var psb = new PooledStringBuilder(capacity);
-        psb.Append(cacheKey);
-
-        if (escaped1 != null)
-        {
-            psb.Append(':');
-            psb.Append(escaped1);
-        }
-
-        if (escaped2 != null)
-        {
-            psb.Append(':');
-            psb.Append(escaped2);
-        }
-
-        return psb.ToString();
+        return BuildEscapedKey(cacheKey, key1?.ToEscaped(), key2?.ToEscaped(), null);
     }
 
     /// <summary>
@@ -948,37 +948,34 @@ public sealed partial class RedisUtil : IRedisUtil
     [Pure]
     public static string BuildKey(string cacheKey, string? key1, string? key2, string? key3)
     {
-        string? escaped1 = key1?.ToEscaped();
-        string? escaped2 = key2?.ToEscaped();
-        string? escaped3 = key3?.ToEscaped();
+        return BuildEscapedKey(cacheKey, key1?.ToEscaped(), key2?.ToEscaped(), key3?.ToEscaped());
+    }
 
-        if (escaped1 == null && escaped2 == null && escaped3 == null)
+    private static string BuildEscapedKey(string cacheKey, string? key1, string? key2, string? key3)
+    {
+        if (key1 is null && key2 is null && key3 is null)
             return cacheKey;
 
-        int capacity = cacheKey.Length + (escaped1 == null ? 0 : 1 + escaped1.Length) + (escaped2 == null ? 0 : 1 + escaped2.Length) +
-                       (escaped3 == null ? 0 : 1 + escaped3.Length);
-        using var psb = new PooledStringBuilder(capacity);
-        psb.Append(cacheKey);
-
-        if (escaped1 != null)
+        int length = cacheKey.Length + (key1 is null ? 0 : key1.Length + 1) +
+                     (key2 is null ? 0 : key2.Length + 1) + (key3 is null ? 0 : key3.Length + 1);
+        return string.Create(length, (cacheKey, key1, key2, key3), static (destination, state) =>
         {
-            psb.Append(':');
-            psb.Append(escaped1);
-        }
+            state.cacheKey.AsSpan().CopyTo(destination);
+            int offset = state.cacheKey.Length;
+            Append(destination, ref offset, state.key1);
+            Append(destination, ref offset, state.key2);
+            Append(destination, ref offset, state.key3);
+        });
 
-        if (escaped2 != null)
+        static void Append(Span<char> destination, ref int offset, string? key)
         {
-            psb.Append(':');
-            psb.Append(escaped2);
-        }
+            if (key is null)
+                return;
 
-        if (escaped3 != null)
-        {
-            psb.Append(':');
-            psb.Append(escaped3);
+            destination[offset++] = ':';
+            key.AsSpan().CopyTo(destination[offset..]);
+            offset += key.Length;
         }
-
-        return psb.ToString();
     }
 
 }
