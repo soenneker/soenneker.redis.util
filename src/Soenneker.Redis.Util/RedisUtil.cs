@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Soenneker.Enums.JsonOptions;
 using Soenneker.Extensions.String;
@@ -17,21 +19,24 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Redis.Util;
 
-/// <inheritdoc cref="IRedisUtil" />
 public sealed partial class RedisUtil : IRedisUtil
 {
+    private readonly JsonSerializerContext _jsonContext;
+
+    private JsonTypeInfo<TJson> GetJsonTypeInfo<TJson>() =>
+        (JsonTypeInfo<TJson>)(_jsonContext.GetTypeInfo(typeof(TJson)) ?? throw new System.NotSupportedException($"No generated JSON metadata for {typeof(TJson)}."));
+
     private readonly bool _log;
-    private readonly JsonOptionType _jsonOptionType;
     private readonly ILogger<RedisUtil> _logger;
     private readonly IRedisClient _redisClient;
     private readonly IBackgroundQueue _backgroundQueue;
 
-    public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient,
+    public RedisUtil(JsonSerializerContext jsonContext, IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient,
         IBackgroundQueue backgroundQueue)
     {
+        _jsonContext = jsonContext ?? throw new System.ArgumentNullException(nameof(jsonContext));
         _log = config.GetValue<bool>("Azure:Redis:Log");
         _logger = logger;
-        _jsonOptionType = _log ? JsonOptionType.Pretty : JsonOptionType.Web;
         _redisClient = redisClient;
         _backgroundQueue = backgroundQueue;
     }
@@ -113,7 +118,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
         try
         {
-            return JsonUtil.Deserialize<T>(lease.Span);
+            return JsonUtil.Deserialize<T>(lease.Span, GetJsonTypeInfo<T>());
         }
         catch (Exception e)
         {
@@ -132,7 +137,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
         try
         {
-            return JsonUtil.Deserialize<T>(cacheValue);
+            return JsonUtil.Deserialize<T>(cacheValue, GetJsonTypeInfo<T>());
         }
         catch (Exception e)
         {
@@ -408,7 +413,7 @@ public sealed partial class RedisUtil : IRedisUtil
     {
         try
         {
-            byte[] utf8 = JsonUtil.SerializeToUtf8Bytes(value!, _jsonOptionType);
+            byte[] utf8 = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(value, value!.GetType(), _jsonContext);
             RedisValue redisValue = utf8;
             return redisValue;
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +9,7 @@ namespace Soenneker.Redis.Util.Abstract;
 /// <summary>
 /// Provides cache-oriented Redis value, collection, expiration, counter, and transaction operations.
 /// </summary>
+/// <remarks>Register a source-generated JsonSerializerContext covering application payloads. JSON contracts are never discovered through reflection.</remarks>
 public interface IRedisUtil
 {
     /// <summary>
