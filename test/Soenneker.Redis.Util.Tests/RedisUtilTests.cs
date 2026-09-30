@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
@@ -73,6 +74,66 @@ public class RedisUtilTests : HostedUnitTest
         var result = await _util.Get<TestDocument>("test", doc.Id, cancellationToken);
         result.Should().NotBeNull();
         result!.CreatedAt.Should().Be(doc.CreatedAt);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Json_operations_should_use_supplied_metadata(bool composedKey, CancellationToken cancellationToken)
+    {
+        var doc = AutoFaker.Generate<TestDocument>();
+        string key = Faker.Random.AlphaNumeric(20);
+        string redisKey = RedisUtil.BuildKey("test:metadata", key);
+        string hashKey = $"{redisKey}:hash";
+        var context = new TestJsonContext(new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        });
+        var typeInfo = context.TestDocument;
+
+        try
+        {
+            bool added = composedKey
+                ? await _util.SetIfNotExists("test:metadata", key, doc, typeInfo, cancellationToken: cancellationToken)
+                : await _util.SetIfNotExists(redisKey, doc, typeInfo, cancellationToken: cancellationToken);
+            added.Should().BeTrue();
+
+            var replacement = AutoFaker.Generate<TestDocument>();
+            bool overwritten = composedKey
+                ? await _util.SetIfNotExists("test:metadata", key, replacement, typeInfo, cancellationToken: cancellationToken)
+                : await _util.SetIfNotExists(redisKey, replacement, typeInfo, cancellationToken: cancellationToken);
+            overwritten.Should().BeFalse();
+
+            var original = await _util.Get(redisKey, typeInfo, cancellationToken);
+            original.Should().NotBeNull();
+            original!.Id.Should().Be(doc.Id);
+
+            if (composedKey)
+                await _util.Set("test:metadata", key, replacement, typeInfo, cancellationToken: cancellationToken);
+            else
+                await _util.Set(redisKey, replacement, typeInfo, cancellationToken: cancellationToken);
+
+            string? storedJson = await _util.GetString(redisKey, cancellationToken);
+            storedJson.Should().Be(JsonSerializer.Serialize(replacement, typeInfo));
+
+            var result = composedKey
+                ? await _util.Get("test:metadata", key, typeInfo, cancellationToken)
+                : await _util.Get(redisKey, typeInfo, cancellationToken);
+            result.Should().NotBeNull();
+            result!.Id.Should().Be(replacement.Id);
+            result.CreatedAt.Should().Be(replacement.CreatedAt);
+
+            await _util.SetHash(hashKey, "document", JsonSerializer.Serialize(doc, typeInfo), cancellationToken: cancellationToken);
+            var hashResult = await _util.GetHash(hashKey, "document", typeInfo, cancellationToken);
+            hashResult.Should().NotBeNull();
+            hashResult!.Id.Should().Be(doc.Id);
+            hashResult.CreatedAt.Should().Be(doc.CreatedAt);
+        }
+        finally
+        {
+            await _util.Remove(redisKey, cancellationToken: CancellationToken.None);
+            await _util.Remove(hashKey, cancellationToken: CancellationToken.None);
+        }
     }
 
     [Test]

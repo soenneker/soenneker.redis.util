@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -21,20 +21,14 @@ namespace Soenneker.Redis.Util;
 
 public sealed partial class RedisUtil : IRedisUtil
 {
-    private readonly JsonSerializerContext _jsonContext;
-
-    private JsonTypeInfo<TJson> GetJsonTypeInfo<TJson>() =>
-        (JsonTypeInfo<TJson>)(_jsonContext.GetTypeInfo(typeof(TJson)) ?? throw new System.NotSupportedException($"No generated JSON metadata for {typeof(TJson)}."));
-
     private readonly bool _log;
     private readonly ILogger<RedisUtil> _logger;
     private readonly IRedisClient _redisClient;
     private readonly IBackgroundQueue _backgroundQueue;
 
-    public RedisUtil(JsonSerializerContext jsonContext, IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient,
+    public RedisUtil(IConfiguration config, ILogger<RedisUtil> logger, IRedisClient redisClient,
         IBackgroundQueue backgroundQueue)
     {
-        _jsonContext = jsonContext ?? throw new System.ArgumentNullException(nameof(jsonContext));
         _log = config.GetValue<bool>("Azure:Redis:Log");
         _logger = logger;
         _redisClient = redisClient;
@@ -101,6 +95,8 @@ public sealed partial class RedisUtil : IRedisUtil
     private void LogSkipValueEmpty([CallerMemberName] string? method = null) =>
         _logger.LogError(">> REDIS: Skipping {method} because the redisValue is null or empty", method);
 
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public ValueTask<T?> Get<T>(string cacheKey, string? key, CancellationToken cancellationToken = default)
         where T : class
     {
@@ -108,6 +104,17 @@ public sealed partial class RedisUtil : IRedisUtil
         return Get<T>(redisKey, cancellationToken);
     }
 
+    public ValueTask<T?> Get<T>(string cacheKey, string? key, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        string redisKey = BuildKey(cacheKey, key);
+        return Get(redisKey, typeInfo, cancellationToken);
+    }
+
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public async ValueTask<T?> Get<T>(string redisKey, CancellationToken cancellationToken = default) where T : class
     {
         // Fast path: read raw bytes via lease to avoid string alloc + UTF8 re-encode
@@ -118,7 +125,7 @@ public sealed partial class RedisUtil : IRedisUtil
 
         try
         {
-            return JsonUtil.Deserialize<T>(lease.Span, GetJsonTypeInfo<T>());
+            return JsonUtil.Deserialize<T>(lease.Span);
         }
         catch (Exception e)
         {
@@ -128,6 +135,30 @@ public sealed partial class RedisUtil : IRedisUtil
         }
     }
 
+    public async ValueTask<T?> Get<T>(string redisKey, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        // Fast path: read raw bytes via lease to avoid string alloc + UTF8 re-encode
+        using Lease<byte>? lease = await GetLease(redisKey, cancellationToken).NoSync();
+
+        if (lease is null)
+            return null;
+
+        try
+        {
+            return JsonUtil.Deserialize(lease.Span, typeInfo);
+        }
+        catch (Exception e)
+        {
+            if (_log)
+                _logger.LogError(e, ">> REDIS: Error deserializing object with key: {key}", redisKey);
+            return null;
+        }
+    }
+
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public async ValueTask<T?> GetHash<T>(string redisKey, string field, CancellationToken cancellationToken = default)
         where T : class
     {
@@ -137,7 +168,28 @@ public sealed partial class RedisUtil : IRedisUtil
 
         try
         {
-            return JsonUtil.Deserialize<T>(cacheValue, GetJsonTypeInfo<T>());
+            return JsonUtil.Deserialize<T>(cacheValue);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error deserializing object with key: {key} and value: {value}", redisKey,
+                cacheValue);
+            return null;
+        }
+    }
+
+    public async ValueTask<T?> GetHash<T>(string redisKey, string field, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        string? cacheValue = await GetHash(redisKey, field, cancellationToken).NoSync();
+        if (cacheValue == null)
+            return null;
+
+        try
+        {
+            return JsonUtil.Deserialize(cacheValue, typeInfo);
         }
         catch (Exception e)
         {
@@ -294,6 +346,8 @@ public sealed partial class RedisUtil : IRedisUtil
         }
     }
 
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false,
         CancellationToken cancellationToken = default) where T : class
     {
@@ -301,6 +355,17 @@ public sealed partial class RedisUtil : IRedisUtil
         return Set(redisKey, value, expiration, useQueue, cancellationToken);
     }
 
+    public ValueTask Set<T>(string cacheKey, string? key, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null, bool useQueue = false,
+        CancellationToken cancellationToken = default) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        string redisKey = BuildKey(cacheKey, key);
+        return Set(redisKey, value, typeInfo, expiration, useQueue, cancellationToken);
+    }
+
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public async ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false,
         CancellationToken cancellationToken = default) where T : class
     {
@@ -311,6 +376,34 @@ public sealed partial class RedisUtil : IRedisUtil
         }
 
         RedisValue? redisValue = SerializeIntoValue((RedisKey)redisKey, value);
+
+        if (redisValue is null)
+            return;
+
+        if (useQueue)
+        {
+            await _backgroundQueue
+                  .QueueValueTask((util: this, key: (RedisKey)redisKey, value: redisValue.Value, exp: expiration),
+                      static (s, ct) => s.util.InternalRedisValueSet(s.key, s.value, s.exp, ct), cancellationToken)
+                  .NoSync();
+            return;
+        }
+
+        await InternalRedisValueSet((RedisKey)redisKey, redisValue.Value, expiration, cancellationToken).NoSync();
+    }
+
+    public async ValueTask Set<T>(string redisKey, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null, bool useQueue = false,
+        CancellationToken cancellationToken = default) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        if (redisKey.IsNullOrEmpty())
+        {
+            LogSkipKeyEmpty();
+            return;
+        }
+
+        RedisValue? redisValue = SerializeIntoValue((RedisKey)redisKey, value, typeInfo);
 
         if (redisValue is null)
             return;
@@ -359,6 +452,8 @@ public sealed partial class RedisUtil : IRedisUtil
         return InternalRedisValueSet((RedisKey)redisKey, (RedisValue)redisValue, expiration, cancellationToken);
     }
 
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public ValueTask<bool> SetIfNotExists<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null,
         CancellationToken cancellationToken = default) where T : class
     {
@@ -366,6 +461,17 @@ public sealed partial class RedisUtil : IRedisUtil
         return SetIfNotExists(redisKey, value, expiration, cancellationToken);
     }
 
+    public ValueTask<bool> SetIfNotExists<T>(string cacheKey, string? key, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        string redisKey = BuildKey(cacheKey, key);
+        return SetIfNotExists(redisKey, value, typeInfo, expiration, cancellationToken);
+    }
+
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     public ValueTask<bool> SetIfNotExists<T>(string redisKey, T value, TimeSpan? expiration = null,
         CancellationToken cancellationToken = default) where T : class
     {
@@ -376,6 +482,25 @@ public sealed partial class RedisUtil : IRedisUtil
         }
 
         RedisValue? redisValue = SerializeIntoValue((RedisKey)redisKey, value);
+
+        if (redisValue is null)
+            return new ValueTask<bool>(false);
+
+        return InternalRedisValueSetIfNotExists((RedisKey)redisKey, redisValue.Value, expiration, cancellationToken);
+    }
+
+    public ValueTask<bool> SetIfNotExists<T>(string redisKey, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+
+        if (redisKey.IsNullOrEmpty())
+        {
+            LogSkipKeyEmpty();
+            return new ValueTask<bool>(false);
+        }
+
+        RedisValue? redisValue = SerializeIntoValue((RedisKey)redisKey, value, typeInfo);
 
         if (redisValue is null)
             return new ValueTask<bool>(false);
@@ -409,11 +534,28 @@ public sealed partial class RedisUtil : IRedisUtil
             cancellationToken);
     }
 
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     private RedisValue? SerializeIntoValue<T>(RedisKey redisKey, T value)
     {
         try
         {
-            byte[] utf8 = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(value, value!.GetType(), _jsonContext);
+            byte[] utf8 = JsonUtil.SerializeToUtf8Bytes(value!);
+            RedisValue redisValue = utf8;
+            return redisValue;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, ">> REDIS: Error serializing object with key: {key}", redisKey);
+            return null;
+        }
+    }
+
+    private RedisValue? SerializeIntoValue<T>(RedisKey redisKey, T value, JsonTypeInfo<T> typeInfo)
+    {
+        try
+        {
+            byte[] utf8 = JsonUtil.SerializeToUtf8Bytes(value, typeInfo);
             RedisValue redisValue = utf8;
             return redisValue;
         }

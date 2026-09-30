@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using StackExchange.Redis;
@@ -9,12 +11,12 @@ namespace Soenneker.Redis.Util.Abstract;
 /// <summary>
 /// Provides cache-oriented Redis value, collection, expiration, counter, and transaction operations.
 /// </summary>
-/// <remarks>Register a source-generated JsonSerializerContext covering application payloads. JSON contracts are never discovered through reflection.</remarks>
+/// <remarks>Pass source-generated JsonTypeInfo metadata to JSON operations for trimming and Native AOT support. Overloads without metadata use reflection-based serialization.</remarks>
 public interface IRedisUtil
 {
     /// <summary>
-    /// Retrieves an object of type <typeparamref name="T"/> from a Redis key composed of a base <paramref name="cacheKey"/> 
-    /// and an optional <paramref name="key"/> segment. 
+    /// Retrieves an object of type <typeparamref name="T"/> from a Redis key composed of a base <paramref name="cacheKey"/>
+    /// and an optional <paramref name="key"/> segment.
     /// The stored value is deserialized from JSON.
     /// </summary>
     /// <typeparam name="T">
@@ -24,7 +26,7 @@ public interface IRedisUtil
     /// The base key under which the object is cached.
     /// </param>
     /// <param name="key">
-    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”). 
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
     /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
     /// </param>
     /// <param name="cancellationToken">
@@ -37,10 +39,41 @@ public interface IRedisUtil
     ///   <item>An instance of <typeparamref name="T"/> otherwise.</item>
     /// </list>
     /// </returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask<T?> Get<T>(string cacheKey, string? key, CancellationToken cancellationToken = default) where T : class;
 
     /// <summary>
-    /// Retrieves an object of type <typeparamref name="T"/> from a Redis key specified by <paramref name="redisKey"/>. 
+    /// Retrieves an object of type <typeparamref name="T"/> from a Redis key composed of a base <paramref name="cacheKey"/>
+    /// and an optional <paramref name="key"/> segment.
+    /// The stored value is deserialized from JSON.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">
+    /// The type to deserialize the stored JSON into. Must be a reference type.
+    /// </typeparam>
+    /// <param name="cacheKey">
+    /// The base key under which the object is cached.
+    /// </param>
+    /// <param name="key">
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
+    /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns>
+    /// A <see cref="ValueTask{TResult}"/> whose result is:
+    /// <list type="bullet">
+    ///   <item><c>null</c> if the Redis key does not exist or deserialization fails.</item>
+    ///   <item>An instance of <typeparamref name="T"/> otherwise.</item>
+    /// </list>
+    /// </returns>
+    ValueTask<T?> Get<T>(string cacheKey, string? key, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default) where T : class;
+
+    /// <summary>
+    /// Retrieves an object of type <typeparamref name="T"/> from a Redis key specified by <paramref name="redisKey"/>.
     /// The stored value is deserialized from JSON.
     /// </summary>
     /// <typeparam name="T">
@@ -59,10 +92,36 @@ public interface IRedisUtil
     ///   <item>An instance of <typeparamref name="T"/> otherwise.</item>
     /// </list>
     /// </returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask<T?> Get<T>(string redisKey, CancellationToken cancellationToken = default) where T : class;
 
     /// <summary>
-    /// Retrieves an object of type <typeparamref name="T"/> from a Redis hash field. 
+    /// Retrieves an object of type <typeparamref name="T"/> from a Redis key specified by <paramref name="redisKey"/>.
+    /// The stored value is deserialized from JSON.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">
+    /// The type to deserialize the stored JSON into. Must be a reference type.
+    /// </typeparam>
+    /// <param name="redisKey">
+    /// The full Redis key under which the object is cached.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns>
+    /// A <see cref="ValueTask{TResult}"/> whose result is:
+    /// <list type="bullet">
+    ///   <item><c>null</c> if the Redis key does not exist or deserialization fails.</item>
+    ///   <item>An instance of <typeparamref name="T"/> otherwise.</item>
+    /// </list>
+    /// </returns>
+    ValueTask<T?> Get<T>(string redisKey, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default) where T : class;
+
+    /// <summary>
+    /// Retrieves an object of type <typeparamref name="T"/> from a Redis hash field.
     /// The stored hash field value is deserialized from JSON.
     /// </summary>
     /// <typeparam name="T">
@@ -84,7 +143,36 @@ public interface IRedisUtil
     ///   <item>An instance of <typeparamref name="T"/> otherwise.</item>
     /// </list>
     /// </returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask<T?> GetHash<T>(string redisKey, string field, CancellationToken cancellationToken = default) where T : class;
+
+    /// <summary>
+    /// Retrieves an object of type <typeparamref name="T"/> from a Redis hash field.
+    /// The stored hash field value is deserialized from JSON.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">
+    /// The type to deserialize the stored JSON into. Must be a reference type.
+    /// </typeparam>
+    /// <param name="redisKey">
+    /// The Redis hash key.
+    /// </param>
+    /// <param name="field">
+    /// The specific field within the hash to retrieve.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns>
+    /// A <see cref="ValueTask{TResult}"/> whose result is:
+    /// <list type="bullet">
+    ///   <item><c>null</c> if the field does not exist or deserialization fails.</item>
+    ///   <item>An instance of <typeparamref name="T"/> otherwise.</item>
+    /// </list>
+    /// </returns>
+    ValueTask<T?> GetHash<T>(string redisKey, string field, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default) where T : class;
 
     /// <summary>
     /// Retrieves a raw string value from a Redis hash field.
@@ -96,14 +184,14 @@ public interface IRedisUtil
     ValueTask<string?> GetHash(string redisKey, string field, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves a raw string value from a Redis key composed of a base <paramref name="cacheKey"/> 
+    /// Retrieves a raw string value from a Redis key composed of a base <paramref name="cacheKey"/>
     /// and an optional <paramref name="key"/> segment.
     /// </summary>
     /// <param name="cacheKey">
     /// The base key under which the string is cached.
     /// </param>
     /// <param name="key">
-    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”). 
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
     /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
     /// </param>
     /// <param name="cancellationToken">
@@ -156,7 +244,26 @@ public interface IRedisUtil
     /// <param name="useQueue">If <c>true</c>, the set operation is enqueued to run in the background; otherwise, it runs immediately.</param>
     /// <param name="cancellationToken">A token to observe while waiting for the asynchronous operation to complete.</param>
     /// <returns>A task that completes when the set operation is complete.</returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask Set<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
+        where T : class;
+
+    /// <summary>
+    /// Stores an object of type <typeparamref name="T"/> under a Redis key composed of a base <paramref name="cacheKey"/>
+    /// and an optional <paramref name="key"/> segment. The object is serialized to JSON before storage.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">The type of the object to store. Must be a reference type.</typeparam>
+    /// <param name="cacheKey">Base cache key used to build the Redis key.</param>
+    /// <param name="key">An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”). If <c>null</c>, <paramref name="cacheKey"/> alone is used.</param>
+    /// <param name="value">Value to serialize or store in the targeted Redis structure.</param>
+    /// <param name="expiration">An optional <see cref="TimeSpan"/> after which the key expires. If <c>null</c>, the key never expires.</param>
+    /// <param name="useQueue">If <c>true</c>, the set operation is enqueued to run in the background; otherwise, it runs immediately.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for the asynchronous operation to complete.</param>
+    /// <returns>A task that completes when the set operation is complete.</returns>
+    ValueTask Set<T>(string cacheKey, string? key, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
         where T : class;
 
     /// <summary>
@@ -170,7 +277,25 @@ public interface IRedisUtil
     /// <param name="useQueue">If <c>true</c>, the set operation is enqueued to run in the background; otherwise, it runs immediately.</param>
     /// <param name="cancellationToken">A token to observe while waiting for the asynchronous operation to complete.</param>
     /// <returns>A task that completes when the set operation is complete.</returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask Set<T>(string redisKey, T value, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
+        where T : class;
+
+    /// <summary>
+    /// Stores an object of type <typeparamref name="T"/> under the specified Redis key.
+    /// The object is serialized to JSON before storage.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">The type of the object to store. Must be a reference type.</typeparam>
+    /// <param name="redisKey">The full Redis key under which to store the object.</param>
+    /// <param name="value">Value to serialize or store in the targeted Redis structure.</param>
+    /// <param name="expiration">An optional <see cref="TimeSpan"/> after which the key expires. If <c>null</c>, the key never expires.</param>
+    /// <param name="useQueue">If <c>true</c>, the set operation is enqueued to run in the background; otherwise, it runs immediately.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for the asynchronous operation to complete.</param>
+    /// <returns>A task that completes when the set operation is complete.</returns>
+    ValueTask Set<T>(string redisKey, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null, bool useQueue = false, CancellationToken cancellationToken = default)
         where T : class;
 
     /// <summary>
@@ -198,7 +323,39 @@ public interface IRedisUtil
     /// A token to observe while waiting for the asynchronous operation to complete.
     /// </param>
     /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask<bool> SetIfNotExists<T>(string cacheKey, string? key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+        where T : class;
+
+    /// <summary>
+    /// Stores an object of type <typeparamref name="T"/> under a Redis key composed of a base <paramref name="cacheKey"/>
+    /// and an optional <paramref name="key"/> segment only when the key does not already exist. The object is serialized to JSON before storage.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">
+    /// The type of the object to store. Must be a reference type.
+    /// </typeparam>
+    /// <param name="cacheKey">
+    /// The base key under which to store the object.
+    /// </param>
+    /// <param name="key">
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
+    /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
+    /// </param>
+    /// <param name="value">
+    /// The object to serialize and store.
+    /// </param>
+    /// <param name="expiration">
+    /// An optional <see cref="TimeSpan"/> after which the key expires.
+    /// If <c>null</c>, the key never expires.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    ValueTask<bool> SetIfNotExists<T>(string cacheKey, string? key, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
         where T : class;
 
     /// <summary>
@@ -222,7 +379,35 @@ public interface IRedisUtil
     /// A token to observe while waiting for the asynchronous operation to complete.
     /// </param>
     /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    [RequiresUnreferencedCode("Reflection-based JSON serialization requires preserved payload types. Use the overload accepting JsonTypeInfo<T> instead.")]
+    [RequiresDynamicCode("Reflection-based JSON serialization may require runtime code generation. Use the overload accepting JsonTypeInfo<T> instead.")]
     ValueTask<bool> SetIfNotExists<T>(string redisKey, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+        where T : class;
+
+    /// <summary>
+    /// Stores an object of type <typeparamref name="T"/> under the specified Redis key only when the key does not already exist.
+    /// The object is serialized to JSON before storage.
+    /// </summary>
+    /// <remarks>Uses the supplied JSON metadata without reflection-based contract discovery.</remarks>
+    /// <param name="typeInfo">Serialization metadata for the payload type.</param>
+    /// <typeparam name="T">
+    /// The type of the object to store. Must be a reference type.
+    /// </typeparam>
+    /// <param name="redisKey">
+    /// The full Redis key under which to store the object.
+    /// </param>
+    /// <param name="value">
+    /// The object to serialize and store.
+    /// </param>
+    /// <param name="expiration">
+    /// An optional <see cref="TimeSpan"/> after which the key expires.
+    /// If <c>null</c>, the key never expires.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A token to observe while waiting for the asynchronous operation to complete.
+    /// </param>
+    /// <returns><c>true</c> if the key was set; otherwise <c>false</c>.</returns>
+    ValueTask<bool> SetIfNotExists<T>(string redisKey, T value, JsonTypeInfo<T> typeInfo, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
         where T : class;
 
     /// <summary>
@@ -352,14 +537,14 @@ public interface IRedisUtil
     /// The base key under which the numeric value is stored.
     /// </param>
     /// <param name="key">
-    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”). 
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
     /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
     /// </param>
     /// <param name="delta">
     /// The amount by which to decrement. Default is 1.
     /// </param>
     /// <param name="useQueue">
-    /// If <c>true</c>, the decrement operation is enqueued to run in the background; 
+    /// If <c>true</c>, the decrement operation is enqueued to run in the background;
     /// otherwise, it runs immediately.
     /// </param>
     /// <param name="cancellationToken">
@@ -375,7 +560,7 @@ public interface IRedisUtil
     ValueTask<long?> Decrement(string cacheKey, string? key, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Decrements the numeric value stored at the specified Redis key. 
+    /// Decrements the numeric value stored at the specified Redis key.
     /// If the key does not exist, it is initialized to 0 before decrementing.
     /// </summary>
     /// <param name="redisKey">
@@ -385,7 +570,7 @@ public interface IRedisUtil
     /// The amount by which to decrement. Default is 1.
     /// </param>
     /// <param name="useQueue">
-    /// If <c>true</c>, the decrement operation is enqueued to run in the background; 
+    /// If <c>true</c>, the decrement operation is enqueued to run in the background;
     /// otherwise, it runs immediately.
     /// </param>
     /// <param name="cancellationToken">
@@ -408,14 +593,14 @@ public interface IRedisUtil
     /// The base key under which the numeric value is stored.
     /// </param>
     /// <param name="key">
-    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”). 
+    /// An optional additional segment to append to <paramref name="cacheKey"/> (separated by “:”).
     /// If <c>null</c>, <paramref name="cacheKey"/> alone is used.
     /// </param>
     /// <param name="delta">
     /// The amount by which to increment. Default is 1.
     /// </param>
     /// <param name="useQueue">
-    /// If <c>true</c>, the increment operation is enqueued to run in the background; 
+    /// If <c>true</c>, the increment operation is enqueued to run in the background;
     /// otherwise, it runs immediately.
     /// </param>
     /// <param name="cancellationToken">
@@ -431,7 +616,7 @@ public interface IRedisUtil
     ValueTask<long?> Increment(string cacheKey, string? key, long delta = 1, bool useQueue = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Increments the numeric value stored at the specified Redis key. 
+    /// Increments the numeric value stored at the specified Redis key.
     /// If the key does not exist, it is initialized to 0 before incrementing.
     /// </summary>
     /// <param name="redisKey">
@@ -441,7 +626,7 @@ public interface IRedisUtil
     /// The amount by which to increment. Default is 1.
     /// </param>
     /// <param name="useQueue">
-    /// If <c>true</c>, the increment operation is enqueued to run in the background; 
+    /// If <c>true</c>, the increment operation is enqueued to run in the background;
     /// otherwise, it runs immediately.
     /// </param>
     /// <param name="cancellationToken">
