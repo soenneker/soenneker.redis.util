@@ -24,7 +24,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Set_item_should_exist(CancellationToken cancellationToken)
+    public async ValueTask Set_item_should_exist(CancellationToken cancellationToken)
     {
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
@@ -38,7 +38,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Set_without_key_should_resolve_with_get(CancellationToken cancellationToken)
+    public async ValueTask Set_without_key_should_resolve_with_get(CancellationToken cancellationToken)
     {
         await _util.Set("test", null, "1", cancellationToken: cancellationToken);
 
@@ -48,7 +48,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task CountExisting_should_count_keys_in_one_operation(CancellationToken cancellationToken)
+    public async ValueTask CountExisting_should_count_keys_in_one_operation(CancellationToken cancellationToken)
     {
         string first = $"test:{Faker.Random.AlphaNumeric(20)}";
         string second = $"test:{Faker.Random.AlphaNumeric(20)}";
@@ -66,7 +66,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Set_json_item_should_exist(CancellationToken cancellationToken)
+    public async ValueTask Set_json_item_should_exist(CancellationToken cancellationToken)
     {
         var doc = AutoFaker.Generate<TestDocument>();
         await _util.Set("test", doc.Id, doc, cancellationToken: CancellationToken.None);
@@ -79,7 +79,7 @@ public class RedisUtilTests : HostedUnitTest
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task Json_operations_should_use_supplied_metadata(bool composedKey, CancellationToken cancellationToken)
+    public async ValueTask Json_operations_should_use_supplied_metadata(bool composedKey, CancellationToken cancellationToken)
     {
         var doc = AutoFaker.Generate<TestDocument>();
         string key = Faker.Random.AlphaNumeric(20);
@@ -137,7 +137,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Removed_cache_item_should_not_exist(CancellationToken cancellationToken)
+    public async ValueTask Removed_cache_item_should_not_exist(CancellationToken cancellationToken)
     {
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
@@ -151,7 +151,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task RemoveIfEqual_should_remove_matching_value(CancellationToken cancellationToken)
+    public async ValueTask RemoveIfEqual_should_remove_matching_value(CancellationToken cancellationToken)
     {
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
@@ -166,7 +166,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task RemoveIfEqual_should_preserve_nonmatching_value(CancellationToken cancellationToken)
+    public async ValueTask RemoveIfEqual_should_preserve_nonmatching_value(CancellationToken cancellationToken)
     {
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
@@ -183,7 +183,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task ExpireIfEqual_should_renew_matching_value(CancellationToken cancellationToken)
+    public async ValueTask ExpireIfEqual_should_renew_matching_value(CancellationToken cancellationToken)
     {
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
@@ -200,7 +200,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task ExpireIfEqual_should_preserve_ttl_for_nonmatching_value(CancellationToken cancellationToken)
+    public async ValueTask ExpireIfEqual_should_preserve_ttl_for_nonmatching_value(CancellationToken cancellationToken)
     {
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
@@ -217,7 +217,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task List_operations_should_preserve_order(CancellationToken cancellationToken)
+    public async ValueTask List_operations_should_preserve_order(CancellationToken cancellationToken)
     {
         string key = $"test:list:{Faker.Random.AlphaNumeric(20)}";
         await _util.PushListRight(key, "first", cancellationToken: cancellationToken);
@@ -232,7 +232,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Set_and_sorted_set_operations_should_round_trip(CancellationToken cancellationToken)
+    public async ValueTask Set_and_sorted_set_operations_should_round_trip(CancellationToken cancellationToken)
     {
         string setKey = $"test:set:{Faker.Random.AlphaNumeric(20)}";
         string sortedSetKey = $"test:sorted:{Faker.Random.AlphaNumeric(20)}";
@@ -251,7 +251,7 @@ public class RedisUtilTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Transaction_should_apply_operations_when_condition_matches(CancellationToken cancellationToken)
+    public async ValueTask Transaction_should_apply_operations_when_condition_matches(CancellationToken cancellationToken)
     {
         string sourceKey = $"test:transaction-source:{Faker.Random.AlphaNumeric(20)}";
         string destinationKey = $"test:transaction-destination:{Faker.Random.AlphaNumeric(20)}";
