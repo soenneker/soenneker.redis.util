@@ -29,7 +29,7 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, cancellationToken: CancellationToken.None);
+        await _util.Set("test", key, value, cancellationToken: cancellationToken);
 
         Logger.LogInformation("Testing");
 
@@ -54,22 +54,22 @@ public class RedisUtilTests : HostedUnitTest
         string second = $"test:{Faker.Random.AlphaNumeric(20)}";
         string missing = $"test:{Faker.Random.AlphaNumeric(20)}";
 
-        await _util.Set(first, "1", cancellationToken: CancellationToken.None);
-        await _util.Set(second, "1", cancellationToken: CancellationToken.None);
+        await _util.Set(first, "1", cancellationToken: cancellationToken);
+        await _util.Set(second, "1", cancellationToken: cancellationToken);
 
         long? count = await _util.CountExisting(new List<string> {first, second, missing}, cancellationToken);
 
         count.Should().Be(2);
 
-        await _util.Remove(first, cancellationToken: CancellationToken.None);
-        await _util.Remove(second, cancellationToken: CancellationToken.None);
+        await _util.Remove(first, cancellationToken: cancellationToken);
+        await _util.Remove(second, cancellationToken: cancellationToken);
     }
 
     [Test]
     public async ValueTask Set_json_item_should_exist(CancellationToken cancellationToken)
     {
         var doc = AutoFaker.Generate<TestDocument>();
-        await _util.Set("test", doc.Id, doc, cancellationToken: CancellationToken.None);
+        await _util.Set("test", doc.Id, doc, cancellationToken: cancellationToken);
 
         var result = await _util.Get<TestDocument>("test", doc.Id, cancellationToken);
         result.Should().NotBeNull();
@@ -142,9 +142,9 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string? value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, cancellationToken: CancellationToken.None);
+        await _util.Set("test", key, value, cancellationToken: cancellationToken);
 
-        await _util.Remove("test", key, cancellationToken: CancellationToken.None);
+        await _util.Remove("test", key, cancellationToken: cancellationToken);
 
         string? rtnValue = await _util.GetString("test", key, cancellationToken);
         rtnValue.Should().BeNull();
@@ -156,7 +156,7 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, cancellationToken: CancellationToken.None);
+        await _util.Set("test", key, value, cancellationToken: cancellationToken);
 
         bool removed = await _util.RemoveIfEqual("test", key, value, cancellationToken);
         string? result = await _util.GetString("test", key, cancellationToken);
@@ -171,7 +171,7 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, cancellationToken: CancellationToken.None);
+        await _util.Set("test", key, value, cancellationToken: cancellationToken);
 
         bool removed = await _util.RemoveIfEqual("test", key, "different", cancellationToken);
         string? result = await _util.GetString("test", key, cancellationToken);
@@ -179,7 +179,7 @@ public class RedisUtilTests : HostedUnitTest
         removed.Should().BeFalse();
         result.Should().Be(value);
 
-        await _util.Remove("test", key, cancellationToken: CancellationToken.None);
+        await _util.Remove("test", key, cancellationToken: cancellationToken);
     }
 
     [Test]
@@ -188,7 +188,7 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, System.TimeSpan.FromSeconds(10), cancellationToken: CancellationToken.None);
+        await _util.Set("test", key, value, System.TimeSpan.FromSeconds(10), cancellationToken: cancellationToken);
 
         bool renewed = await _util.ExpireIfEqual("test", key, value, System.TimeSpan.FromMinutes(1), cancellationToken);
         System.TimeSpan? ttl = await _util.GetTimeToLive("test", key, cancellationToken);
@@ -196,7 +196,7 @@ public class RedisUtilTests : HostedUnitTest
         renewed.Should().BeTrue();
         ttl.Should().BeGreaterThan(System.TimeSpan.FromSeconds(50));
 
-        await _util.Remove("test", key, cancellationToken: CancellationToken.None);
+        await _util.Remove("test", key, cancellationToken: cancellationToken);
     }
 
     [Test]
@@ -205,7 +205,7 @@ public class RedisUtilTests : HostedUnitTest
         string key = Faker.Random.AlphaNumeric(20);
         string value = Faker.Random.AlphaNumeric(20);
 
-        await _util.Set("test", key, value, System.TimeSpan.FromSeconds(10), cancellationToken: CancellationToken.None);
+        await _util.Set("test", key, value, System.TimeSpan.FromSeconds(10), cancellationToken: cancellationToken);
 
         bool renewed = await _util.ExpireIfEqual("test", key, "different", System.TimeSpan.FromMinutes(1), cancellationToken);
         System.TimeSpan? ttl = await _util.GetTimeToLive("test", key, cancellationToken);
@@ -213,7 +213,7 @@ public class RedisUtilTests : HostedUnitTest
         renewed.Should().BeFalse();
         ttl.Should().BeLessThan(System.TimeSpan.FromSeconds(15));
 
-        await _util.Remove("test", key, cancellationToken: CancellationToken.None);
+        await _util.Remove("test", key, cancellationToken: cancellationToken);
     }
 
     [Test]
