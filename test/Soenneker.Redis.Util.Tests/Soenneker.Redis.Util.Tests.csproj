@@ -10,7 +10,7 @@
         <PackageReference Include="Soenneker.Documents.Document" Version="4.0.2733" />
         <PackageReference Include="Soenneker.Tests.HostedUnit" Version="4.0.309" />
         <PackageReference Include="Soenneker.Utils.Test" Version="4.0.331" />
-        <PackageReference Include="TUnit" Version="1.73.5" />
+        <PackageReference Include="TUnit" Version="1.73.19" />
     </ItemGroup>
 
     <ItemGroup>
