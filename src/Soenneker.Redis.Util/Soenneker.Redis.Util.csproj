@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <IsAotCompatible>true</IsAotCompatible>
         <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
         <Nullable>enable</Nullable>
@@ -10,7 +10,7 @@
 
     <PropertyGroup>
         <Description>The general purpose utility library leveraging Redis for all of your caching needs</Description>
-        <Version Condition="'$(BUILD_VERSION)' == ''">4.0.0</Version>
+        <Version Condition="'$(BUILD_VERSION)' == ''">11.0.0</Version>
         <Version Condition="'$(BUILD_VERSION)' != ''">$(BUILD_VERSION)</Version>
         <AssemblyName>Soenneker.Redis.Util</AssemblyName>
         <PackageId>Soenneker.Redis.Util</PackageId>
@@ -45,7 +45,7 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Redis.Client" Version="4.0.2380" />
-        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2541" />
+        <PackageReference Include="Soenneker.Utils.BackgroundQueue" Version="4.0.2542" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2757" />
     </ItemGroup>
 </Project>
